@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dispatch Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0a0f1e; --panel:#111a33; --panel2:#0d1428; --line:#23305a; --text:#e9edf9; --muted:#8b96b8;
+  --accent:#ffb454; --accent2:#4fd1c5; --accent-rgb:255,180,84; --accent2-rgb:79,209,197;
+  --btn-a:#ffb454; --btn-b:#ff8e3c; --btn-text:#221302;
+  --danger:#ff6b6b; --ok:#34d399; --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#26335e;border-radius:8px}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+  padding:9px 11px;border-radius:9px;font-family:inherit;font-size:14px}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#182347;color:var(--text);
+  padding:9px 15px;border-radius:9px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:#3a4c8f}
+.btn:disabled{opacity:.5;cursor:default}
+.btn-primary{background:linear-gradient(135deg,var(--btn-a),var(--btn-b));color:var(--btn-text);border:none}
+.btn-danger{background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.4);color:#ff8f8f}
+.btn-sm{padding:6px 11px;font-size:12.5px}
+.topbar{background:#0c1226;border-bottom:1px solid var(--line);padding:16px 26px;display:flex;
+  justify-content:space-between;align-items:center}
+.topbar b{font-size:17px}
+main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
+.tabs{display:flex;gap:6px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.tab{background:none;border:none;color:var(--muted);padding:10px 16px;font-size:14px;font-weight:600;
+  cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.card{background:linear-gradient(180deg,#121b38,#0f1730);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.row{display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:1px solid #1a2444;flex-wrap:wrap}
+.row:last-child{border-bottom:none}
+.row .grow{flex:1;min-width:180px}
+.row b{font-size:14.5px}
+.row .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.pill{font-size:11px;font-weight:700;border-radius:99px;padding:3px 10px}
+.pill.amber{background:rgba(var(--accent-rgb),.15);color:var(--accent)}
+.pill.gray{background:#1a2444;color:var(--muted)}
+.pill.green{background:rgba(52,211,153,.14);color:var(--ok)}
+.pill.red{background:rgba(255,107,107,.14);color:#ff8f8f}
+.detail{background:#0d1428;border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:10px;display:none}
+.detail.open{display:block}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--muted);margin-bottom:5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:#141f40;border:1px solid var(--line);border-left:4px solid var(--accent2);padding:12px 16px;
+  border-radius:10px;font-size:13.5px;font-weight:600;box-shadow:0 10px 26px rgba(0,0,0,.5)}
+.toast.ok{border-left-color:var(--ok)}.toast.err{border-left-color:var(--danger)}
+.search{max-width:320px;margin-bottom:16px}
+.empty{text-align:center;padding:40px;color:var(--muted)}
+#authWrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-card{width:100%;max-width:380px;background:#111a33;border:1px solid var(--line);border-radius:16px;padding:30px}
+.auth-card h1{font-size:22px;margin-bottom:4px}
+.auth-card p{color:var(--muted);font-size:13.5px;margin-bottom:18px}
+.err{color:var(--danger);font-size:13px;min-height:16px;margin:4px 0 8px}
+.denied{text-align:center;padding:60px 20px;color:var(--muted)}
+
+/* ---------- theme picker ---------- */
+.theme-picker-wrap{position:relative}
+.theme-toggle-btn{display:flex;align-items:center;gap:7px;background:#0d1428;color:var(--text);
+  border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;
+  font-family:inherit;cursor:pointer;transition:.15s}
+.theme-toggle-btn:hover{border-color:#3a4c8f}
+.theme-toggle-btn svg{flex:none;color:var(--accent)}
+.theme-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:80;background:#141f40;
+  border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.5);padding:6px;min-width:190px}
+.theme-menu-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;
+  border:none;color:var(--text);padding:9px 10px;border-radius:8px;font-size:13px;font-family:inherit;
+  font-weight:600;cursor:pointer;transition:.12s}
+.theme-menu-item:hover{background:#1a2650}
+.theme-menu-item.active{background:#1a2650}
+.theme-swatch{width:16px;height:16px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,.12)}
+.theme-menu-item .check{margin-left:auto;color:var(--accent2);font-size:13px}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+@media(max-width:560px){
+  .topbar{flex-wrap:wrap;gap:10px;padding:14px 16px}
+  .theme-toggle-btn span{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="authWrap">
+  <div class="auth-card">
+    <h1>📡 Dispatch Admin</h1>
+    <p>Sign in with your admin account.</p>
+    <div class="field"><label>Email</label><input type="email" id="adEmail"></div>
+    <div class="field"><label>Password</label><input type="password" id="adPass"></div>
+    <div class="err" id="adErr"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="adBtn" onclick="doSignin()">Sign in</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="topbar">
+    <b>📡 Dispatch Admin</b>
+    <div class="topbar-actions">
+      <div class="theme-picker-wrap">
+        <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Choose a color theme" aria-label="Choose a color theme" aria-haspopup="true" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6 2 11c0 3 2 5 4.5 5H8a1.5 1.5 0 0 1 1.5 1.5c0 .8-.3 1.2-.3 2A2.5 2.5 0 0 0 11.7 22C17.5 22 22 17.5 22 12 22 6.5 17.5 2 12 2Z"/><circle cx="7.3" cy="10.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="10.8" cy="6.8" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.3" cy="7.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="17.3" cy="11.5" r="1.15" fill="currentColor" stroke="none"/></svg>
+          <span>Theme</span>
+        </button>
+        <div class="theme-menu hidden" id="themeMenu"></div>
+      </div>
+      <button class="btn btn-sm" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+  <main>
+    <div id="deniedBox" class="denied hidden">
+      🔒 This account doesn't have Dispatch Admin access.
+    </div>
+    <div id="mainBox">
+      <div class="tabs">
+        <button class="tab active" data-tab="accounts" onclick="setTab('accounts')">Accounts</button>
+        <button class="tab" data-tab="settings" onclick="setTab('settings')">AI &amp; Agent settings</button>
+      </div>
+
+      <!-- ACCOUNTS -->
+      <section id="tab-accounts">
+        <input class="search" id="acctSearch" placeholder="🔍 Search name or email…" oninput="renderAccounts()">
+        <div class="card"><div id="acctList"></div></div>
+      </section>
+
+      <!-- AI & AGENT SETTINGS -->
+      <section id="tab-settings" class="hidden">
+        <div class="card" style="margin-bottom:18px">
+          <h3 style="margin-bottom:6px;font-size:15px">Shared AI key</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            One DigitalHouse-owned key powers the Agent for every Dispatch user — match scoring, CV/cover letter/motivational
+            letter drafting, reading a user's Watched pages, and applying on their behalf. Users never see or manage this
+            (they only ever see the word "Agent" in the app); the cost is recovered through their subscription, not billed
+            to their own accounts.</p>
+          <div class="row2">
+            <div class="field"><label>AI provider</label>
+              <select id="setProvider"><option value="none">None — Agent disabled app-wide</option>
+                <option value="anthropic">Anthropic (Claude)</option><option value="openai">OpenAI (GPT)</option></select></div>
+            <div class="field"><label>API key</label><input type="password" id="setKey" placeholder="sk-…"></div>
+          </div>
+          <div class="field">
+            <label>Model (exact API string — leave blank to use a sensible cheap default)</label>
+            <input id="setModel" placeholder="e.g. claude-haiku-4-5-20251001, claude-sonnet-5, gpt-4o-mini">
+            <p style="color:var(--muted);font-size:12px;margin-top:6px">
+              This is used for match scoring and for reading a user's Watched pages to find job postings — the default
+              here is Claude Sonnet 5 for Anthropic / GPT-4o-mini for OpenAI. Paste any valid model string from your
+              provider to override the default. Anthropic retires older model snapshots periodically — if scoring or
+              page-reading silently stops working, check whether the model string here is still current.</p>
+          </div>
+          <button class="btn btn-primary" id="setSaveBtn" onclick="saveSettings()">💾 Save</button>
+          <p style="color:var(--muted);font-size:12px;margin-top:14px">
+            This key is stored in <code>dispatch_settings</code> and read directly by the Railway worker
+            (<code>discoverWatched.js</code>/<code>apply.js</code>) on every run — no further backend change is needed
+            when you update it here.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:6px;font-size:15px">Agent instructions</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            Free-text guidance prepended to the prompt the Agent uses when it reads a user's Watched pages to work out
+            which links are real job postings. Use this to steer judgement calls — e.g. what to treat as a "job
+            posting" vs. navigation, how to handle listings with no clear title, or any site-specific quirks you've
+            noticed. Leave blank to use the Agent's built-in default behaviour.</p>
+          <div class="field">
+            <textarea id="setAgentPrompt" rows="6" placeholder="e.g. Prefer postings less than 30 days old. Ignore internship/graduate listings unless the user's titles mention them. Treat 'Apply' and 'View job' links the same way."></textarea>
+          </div>
+          <button class="btn btn-primary" id="setPromptSaveBtn" onclick="saveSettings()">💾 Save</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const SUPABASE_URL = 'https://celylskveytdwvuvsuvx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QBseann9rrODgfZP9V0oXg_u9brFEVh';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let accounts=[];
+function $(s){return document.querySelector(s)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg,type){const t=document.createElement('div');t.className='toast'+(type?' '+type:'');
+  t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),3400)}
+
+/* ================= THEME PICKER ================= */
+const THEMES={
+  nebula:{label:'Nebula', accent:'#ffb454', accentRgb:'255,180,84', accent2:'#4fd1c5', accent2Rgb:'79,209,197',
+    btnA:'#ffb454', btnB:'#ff8e3c', btnText:'#221302'},
+  signal:{label:'Signal', accent:'#4f9dff', accentRgb:'79,157,255', accent2:'#a3e635', accent2Rgb:'163,230,53',
+    btnA:'#4f9dff', btnB:'#2f7de0', btnText:'#071a33'},
+  relay:{label:'Relay', accent:'#c084fc', accentRgb:'192,132,252', accent2:'#ff7ab8', accent2Rgb:'255,122,184',
+    btnA:'#c084fc', btnB:'#a855f7', btnText:'#24072f'},
+  aurora:{label:'Aurora', accent:'#2dd4a7', accentRgb:'45,212,167', accent2:'#38bdf8', accent2Rgb:'56,189,248',
+    btnA:'#2dd4a7', btnB:'#14b892', btnText:'#052e24'},
+  solstice:{label:'Solstice', accent:'#ffd166', accentRgb:'255,209,102', accent2:'#ff8f70', accent2Rgb:'255,143,112',
+    btnA:'#ffd166', btnB:'#ffab40', btnText:'#2e1900'},
+};
+function applyTheme(name){
+  const t=THEMES[name]||THEMES.nebula;
+  const r=document.documentElement.style;
+  r.setProperty('--accent',t.accent);
+  r.setProperty('--accent-rgb',t.accentRgb);
+  r.setProperty('--accent2',t.accent2);
+  r.setProperty('--accent2-rgb',t.accent2Rgb);
+  r.setProperty('--btn-a',t.btnA);
+  r.setProperty('--btn-b',t.btnB);
+  r.setProperty('--btn-text',t.btnText);
+  try{localStorage.setItem('dispatchTheme',name)}catch(e){}
+  renderThemeMenu(name);
+}
+function renderThemeMenu(active){
+  const menu=$('#themeMenu');
+  if(!menu) return;
+  menu.innerHTML=Object.keys(THEMES).map(key=>{
+    const t=THEMES[key];
+    const isActive=key===active;
+    return `<button type="button" class="theme-menu-item${isActive?' active':''}" data-theme="${key}">
+      <span class="theme-swatch" style="background:linear-gradient(135deg,${t.accent},${t.accent2})"></span>
+      ${esc(t.label)}${isActive?'<span class="check">✓</span>':''}
+    </button>`;
+  }).join('');
+  menu.querySelectorAll('.theme-menu-item').forEach(btn=>{
+    btn.addEventListener('click',()=>{applyTheme(btn.dataset.theme);closeThemeMenu()});
+  });
+}
+function openThemeMenu(){
+  $('#themeMenu').classList.remove('hidden');
+  $('#themeToggleBtn').setAttribute('aria-expanded','true');
+}
+function closeThemeMenu(){
+  $('#themeMenu').classList.add('hidden');
+  $('#themeToggleBtn').setAttribute('aria-expanded','false');
+}
+(function initThemePicker(){
+  let saved='nebula';
+  try{saved=localStorage.getItem('dispatchTheme')||'nebula'}catch(e){}
+  if(!THEMES[saved]) saved='nebula';
+  applyTheme(saved);
+  const btn=$('#themeToggleBtn');
+  btn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    $('#themeMenu').classList.contains('hidden')?openThemeMenu():closeThemeMenu();
+  });
+  document.addEventListener('click',(e)=>{
+    const wrap=$('.theme-picker-wrap');
+    if(wrap && !wrap.contains(e.target)) closeThemeMenu();
+  });
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape') closeThemeMenu();
+  });
+})();
+
+async function doSignin(){
+  const errorEl=$('#adErr'); errorEl.textContent='';
+  const email=$('#adEmail').value.trim(), password=$('#adPass').value;
+  if(!email||!password){ errorEl.textContent='Enter email and password.'; return; }
+  const btn=$('#adBtn'); btn.disabled=true; btn.textContent='Signing in…';
+  const {data,error} = await sb.auth.signInWithPassword({email,password});
+  btn.disabled=false; btn.textContent='Sign in';
+  if(error){ errorEl.textContent=error.message; return; }
+  await enterApp();
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  $('#app').classList.add('hidden');
+  $('#authWrap').classList.remove('hidden');
+}
+
+async function enterApp(){
+  $('#authWrap').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  // RLS itself is the real gatekeeper here — a non-admin account simply
+  // gets zero rows back on this query, not an error, since the SELECT
+  // policy only matches rows when auth.uid() is in dispatch_admins.
+  const {data, error} = await sb.from('job_seekers').select('*').limit(1);
+  if(error || !data){
+    $('#mainBox').classList.add('hidden');
+    $('#deniedBox').classList.remove('hidden');
+    return;
+  }
+  await loadAccounts();
+  await loadSettings();
+}
+
+function setTab(name){
+  ['accounts','settings'].forEach(t=>{
+    document.querySelector('.tab[data-tab="'+t+'"]').classList.toggle('active', t===name);
+    $('#tab-'+t).classList.toggle('hidden', t!==name);
+  });
+}
+
+/* ================= AI & AGENT SETTINGS (shared key + prompt) ================= */
+let appSettings=null;
+async function loadSettings(){
+  const {data, error} = await sb.from('dispatch_settings').select('*').eq('id', true).single();
+  appSettings = error ? null : data;
+  if(appSettings){
+    $('#setProvider').value = appSettings.ai_provider || 'none';
+    $('#setKey').value = appSettings.ai_api_key || '';
+    $('#setModel').value = appSettings.ai_model || '';
+    $('#setAgentPrompt').value = appSettings.agent_prompt || '';
+  }
+}
+async function saveSettings(){
+  const provider=$('#setProvider').value;
+  const key=$('#setKey').value.trim() || null;
+  const model=$('#setModel').value.trim() || null;
+  const agentPrompt=$('#setAgentPrompt').value.trim() || null;
+  const btns=[$('#setSaveBtn'), $('#setPromptSaveBtn')];
+  btns.forEach(b=>{ if(b){ b.disabled=true; b.textContent='Saving…'; } });
+  const {error} = await sb.from('dispatch_settings').update({
+    ai_provider:provider, ai_api_key:key, ai_model:model, agent_prompt:agentPrompt, updated_at:new Date().toISOString()
+  }).eq('id', true);
+  btns.forEach(b=>{ if(b){ b.disabled=false; b.textContent='💾 Save'; } });
+  if(error){ toast('⚠ '+error.message,'err'); return; }
+  toast('Saved ✓ — the Railway worker picks this up on its next run','ok');
+}
+
+/* ================= ACCOUNTS ================= */
+async function loadAccounts(){
+  const {data, error} = await sb.from('job_seekers').select('*').order('created_at',{ascending:false});
+  accounts = error ? [] : (data||[]);
+  renderAccounts();
+}
+
+function renderAccounts(){
+  const q=$('#acctSearch').value.toLowerCase();
+  const list = accounts.filter(a => !q || (a.full_name||'').toLowerCase().includes(q) || (a.dedicated_email||'').toLowerCase().includes(q));
+  const el=$('#acctList');
+  if(!list.length){ el.innerHTML='<div class="empty">No accounts found.</div>'; return; }
+  el.innerHTML = list.map(a=>{
+    const isPaused = a.status === 'paused';
+    return '<div class="row">'+
+      '<div class="grow"><b>'+esc(a.full_name||'(no name)')+'</b><div class="sub">'+esc(a.dedicated_email||'')+'</div></div>'+
+      '<span class="pill '+(isPaused?'gray':'green')+'">'+(isPaused?'paused':'active')+'</span>'+
+      '<span class="pill '+(a.application_mode==='automatic'?'amber':'gray')+'">'+esc(a.application_mode||'approval')+'</span>'+
+      '<span style="color:var(--muted);font-size:12px">Titles: '+esc((a.job_title_keywords||[]).join(', ')||'—')+'</span>'+
+      '<button class="btn btn-sm" data-toggle-status="'+a.id+'">'+(isPaused?'▶ Reactivate':'⏸ Pause')+'</button>'+
+      '<button class="btn btn-danger btn-sm" data-delete-acct="'+a.id+'">🗑 Delete</button>'+
+      '</div>';
+  }).join('');
+
+  el.querySelectorAll('[data-toggle-status]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id=btn.dataset.toggleStatus;
+      const acct=accounts.find(a=>a.id===id);
+      const newStatus = acct.status==='paused' ? 'active' : 'paused';
+      btn.disabled=true;
+      const {error} = await sb.from('job_seekers').update({status:newStatus}).eq('id', id);
+      btn.disabled=false;
+      if(error){ toast('⚠ '+error.message,'err'); return; }
+      acct.status=newStatus;
+      toast(newStatus==='paused' ? 'Account paused — agent will stop matching/applying for them' : 'Account reactivated','ok');
+      renderAccounts();
+    });
+  });
+  el.querySelectorAll('[data-delete-acct]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id=btn.dataset.deleteAcct;
+      const acct=accounts.find(a=>a.id===id);
+      const ok = confirm('Delete '+(acct.full_name||'this account')+'? This permanently removes their profile, resume, matches, applications, documents, and watched pages. Their login itself is not removed (that needs the same self-service delete flow they\'d use themselves). This can\'t be undone.');
+      if(!ok) return;
+      btn.disabled=true;
+      const {error} = await sb.from('job_seekers').delete().eq('id', id);
+      if(error){ toast('⚠ '+error.message,'err'); btn.disabled=false; return; }
+      accounts = accounts.filter(a=>a.id!==id);
+      toast('Account deleted','ok');
+      renderAccounts();
+    });
+  });
+}
+
+/* ================= BOOT ================= */
+(async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(session) await enterApp();
+})();
+</script>
+</body>
+</html>
