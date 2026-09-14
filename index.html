@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dispatch — your job agent working even while you sleep</title>
+<title>JobAgent — your job agent working even while you sleep</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,12 +16,14 @@
   --btn-a:#ffb454; --btn-b:#ff8e3c; --btn-text:#221302;
   --btn-shadow:rgba(255,150,60,.25); --btn-shadow-hover:rgba(255,150,60,.4);
   --danger:#ff6b6b; --ok:#34d399; --radius:14px;
+  --card-bg:linear-gradient(180deg,#121b38,#0f1730); --card-text:#e9edf9; --sidebar-bg:#0c1226;
+  --input-bg:#0d1428;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
   font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
-  background:var(--bg); color:var(--text); min-height:100vh; font-size:15px;
+  background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; transition:.3s; font-weight:500;
 }
 #bgfx{position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
@@ -41,7 +43,7 @@ a{color:var(--accent2)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);
   background:#182347;color:var(--text);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;
   cursor:pointer;transition:.18s;font-family:inherit}
-.btn:hover{transform:translateY(-1px);border-color:#3a4c8f}
+.btn:hover{transform:translateY(-1px);border-color:var(--accent)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn-primary{background:linear-gradient(135deg,var(--btn-a),var(--btn-b));color:var(--btn-text);border:none;
   box-shadow:0 6px 18px var(--btn-shadow)}
@@ -61,7 +63,7 @@ a{color:var(--accent2)}
 .field label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:var(--muted);margin-bottom:6px}
 .field .hint{font-size:12px;color:var(--muted);margin-top:5px}
-input,select,textarea{width:100%;background:#0d1428;border:1px solid var(--line);color:var(--text);
+input,select,textarea{width:100%;background:var(--input-bg);border:1px solid var(--line);color:var(--text);
   padding:10px 12px;border-radius:10px;font-family:inherit;font-size:14px;transition:.15s}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   box-shadow:0 0 0 3px rgba(var(--accent-rgb),.15)}
@@ -73,10 +75,10 @@ select{cursor:pointer}
 
 /* preferred-locations multiselect (Profile) */
 .loc-multiselect{position:relative}
-.loc-ms-btn{width:100%;background:#0d1428;border:1px solid var(--line);color:var(--text);
+.loc-ms-btn{width:100%;background:var(--input-bg);border:1px solid var(--line);color:var(--text);
   padding:10px 12px;border-radius:10px;font-family:inherit;font-size:14px;cursor:pointer;
   display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;transition:.15s}
-.loc-ms-btn:hover{border-color:#3a4c8f}
+.loc-ms-btn:hover{border-color:var(--accent)}
 .loc-ms-btn.open{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.15)}
 .loc-ms-btn .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .loc-ms-btn .lbl.placeholder{color:var(--muted)}
@@ -86,16 +88,16 @@ select{cursor:pointer}
   border:1px solid var(--line);border-radius:12px;padding:6px;max-height:280px;overflow-y:auto;
   box-shadow:0 12px 30px rgba(0,0,0,.45)}
 .loc-ms-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px}
-.loc-ms-opt:hover{background:#131d3d}
+.loc-ms-opt:hover{background:var(--panel2)}
 .loc-ms-opt input{width:auto;accent-color:var(--accent);cursor:pointer}
 .loc-ms-opt.all-opt{font-weight:700;color:var(--accent)}
 .loc-ms-sep{height:1px;background:var(--line);margin:6px 2px}
 .loc-ms-opt.disabled{opacity:.4;pointer-events:none}
 .err{color:var(--danger);font-size:13px;min-height:18px;margin:4px 0 8px}
 .ok-msg{color:var(--ok);font-size:13px;margin:4px 0 8px}
-.radio-card{display:flex;gap:10px;align-items:flex-start;background:#0d1428;border:1px solid var(--line);
+.radio-card{display:flex;gap:10px;align-items:flex-start;background:var(--input-bg);border:1px solid var(--line);
   border-radius:10px;padding:12px;margin-bottom:10px;cursor:pointer;transition:.15s}
-.radio-card:hover{border-color:#3a4c8f}
+.radio-card:hover{border-color:var(--accent)}
 .radio-card.active{border-color:var(--accent);background:rgba(var(--accent-rgb),.08)}
 .radio-card b{display:block;font-size:14px}
 .radio-card small{color:var(--muted);font-size:12.5px}
@@ -111,10 +113,10 @@ select{cursor:pointer}
 /* ---------- auth ---------- */
 #authWrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-card{width:100%;max-width:440px;background:linear-gradient(180deg,#131d3a,#0e1630);
-  border:1px solid var(--line);border-radius:20px;padding:34px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  border:1px solid var(--line);border-radius:20px;padding:34px;box-shadow:0 30px 80px rgba(0,0,0,.5);transition:.3s}
 .brand{text-align:center;margin-bottom:26px}
 .brand .logo{font-size:34px}
-.brand h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.brand h1{font-size:26px;font-weight:900;letter-spacing:-.02em}
 .brand p{color:var(--muted);font-size:13.5px;margin-top:4px}
 .pulse{position:relative;width:74px;height:74px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
 .pulse .dish{font-size:34px;z-index:2}
@@ -129,39 +131,39 @@ select{cursor:pointer}
 
 /* ---------- app shell ---------- */
 .shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
-#sidebar{background:#0c1226;border-right:1px solid var(--line);padding:20px 14px;display:flex;
+#sidebar{background:#0c1226;border-right:1px solid #23305a;padding:20px 14px;display:flex;
   flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-.side-brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.side-brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px;border-bottom:1px solid #23305a;margin-bottom:14px}
 .side-brand .logo{font-size:26px}
-.side-brand b{font-size:18px;font-weight:800}
-.side-brand small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+.side-brand b{font-size:18px;font-weight:900}
+.side-brand small{display:block;color:#8b96b8;font-size:11px;font-weight:600}
 .nav-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;
-  color:var(--muted);padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;
+  color:#8b96b8;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;
   transition:.15s;font-family:inherit;margin-bottom:2px}
-.nav-btn:hover{background:#131d3d;color:var(--text)}
-.nav-btn.active{background:linear-gradient(90deg,rgba(var(--accent-rgb),.16),transparent);color:var(--accent);
-  box-shadow:inset 3px 0 0 var(--accent)}
+.nav-btn:hover{background:#0d1428;color:#e9edf9}
+.nav-btn.active{background:linear-gradient(90deg,rgba(192,132,252,.16),transparent);color:#c084fc;
+  box-shadow:inset 3px 0 0 #c084fc}
 .nav-btn .ico{width:22px;text-align:center}
 .nav-badge{margin-left:auto;background:var(--accent);color:var(--btn-text);font-size:11px;font-weight:800;
   border-radius:99px;padding:1px 8px}
-.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
-.agent-pill{display:flex;align-items:center;gap:8px;background:#0d1428;border:1px solid var(--line);
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid #23305a}
+.agent-pill{display:flex;align-items:center;gap:8px;background:var(--input-bg);border:1px solid var(--line);
   border-radius:99px;padding:8px 12px;font-size:12px;color:var(--muted);margin-bottom:10px}
 
 /* ---------- theme picker ---------- */
 .theme-picker-wrap{position:relative;margin-bottom:10px}
-.theme-toggle-btn{display:flex;align-items:center;gap:8px;width:100%;background:#0d1428;color:var(--text);
+.theme-toggle-btn{display:flex;align-items:center;gap:8px;width:100%;background:var(--input-bg);color:var(--text);
   border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;
   font-family:inherit;cursor:pointer;transition:.15s}
-.theme-toggle-btn:hover{border-color:#3a4c8f}
+.theme-toggle-btn:hover{border-color:var(--accent)}
 .theme-toggle-btn svg{flex:none;color:var(--accent)}
-.theme-menu{position:absolute;bottom:calc(100% + 8px);left:0;right:0;z-index:80;background:#141f40;
+.theme-menu{position:absolute;bottom:calc(100% + 8px);left:0;right:0;z-index:80;background:var(--panel);
   border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.5);padding:6px}
 .theme-menu-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;
   border:none;color:var(--text);padding:9px 10px;border-radius:8px;font-size:13px;font-family:inherit;
   font-weight:600;cursor:pointer;transition:.12s}
-.theme-menu-item:hover{background:#1a2650}
-.theme-menu-item.active{background:#1a2650}
+.theme-menu-item:hover{background:var(--panel2)}
+.theme-menu-item.active{background:var(--panel2)}
 .theme-swatch{width:16px;height:16px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,.12)}
 .theme-menu-item .check{margin-left:auto;color:var(--accent2);font-size:13px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
@@ -170,20 +172,20 @@ select{cursor:pointer}
 @keyframes blink{50%{opacity:.3}}
 main{padding:26px 30px 60px;max-width:1200px;width:100%}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
-.topbar h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.topbar h2{font-size:24px;font-weight:900;letter-spacing:-.02em}
 .topbar .sub{color:var(--muted);font-size:13.5px;margin-top:3px}
 .topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .lastscan{color:var(--muted);font-size:12.5px}
 
 /* ---------- cards / sections ---------- */
-.card{background:linear-gradient(180deg,#121b38,#0f1730);border:1px solid var(--line);
+.card{background:var(--card-bg);border:1px solid var(--line);
   border-radius:var(--radius);padding:22px}
-.card h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.card h3{font-size:16px;font-weight:800;margin-bottom:14px}
 .section-note{color:var(--muted);font-size:13.5px;line-height:1.6;margin-bottom:16px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
-.stat{background:linear-gradient(180deg,#121b38,#0f1730);border:1px solid var(--line);border-radius:var(--radius);
+.stat{background:var(--card-bg);border:1px solid var(--line);border-radius:var(--radius);
   padding:18px;transition:.2s}
-.stat:hover{transform:translateY(-2px);border-color:#3a4c8f}
+.stat:hover{transform:translateY(-2px);border-color:var(--accent)}
 .stat .num{font-size:28px;font-weight:800;color:var(--accent)}
 .stat .lbl{color:var(--muted);font-size:12.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
 .stat.teal .num{color:var(--accent2)}
@@ -204,14 +206,14 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
 .toolbar input[type=search]{max-width:260px}
 .toolbar select{width:auto;min-width:150px}
 .match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
-.mcard{background:linear-gradient(180deg,#121b38,#0f1730);border:1px solid var(--line);border-radius:var(--radius);
+.mcard{background:var(--card-bg);border:1px solid var(--line);border-radius:var(--radius);
   padding:18px;display:flex;flex-direction:column;gap:10px;transition:.2s}
 .mcard:hover{transform:translateY(-3px);border-color:#3a4c8f;box-shadow:0 12px 30px rgba(0,0,0,.35)}
 .mcard-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .score{background:linear-gradient(135deg,var(--btn-a),var(--btn-b));color:var(--btn-text);font-weight:800;font-size:13px;
   border-radius:99px;padding:4px 11px;flex:none}
 .score.gray{background:#1a2444;color:var(--muted)}
-.mcard h4{font-size:16px;font-weight:700;line-height:1.3}
+.mcard h4{font-size:16px;font-weight:800;line-height:1.3}
 .mcard .co{color:var(--accent2);font-size:13.5px;font-weight:600}
 .mcard .meta{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -248,7 +250,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
 .addrow input{flex:1}
 
 /* ---------- outputs ---------- */
-.output{background:#0d1428;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-top:16px}
+.output{background:var(--input-bg);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-top:16px}
 .output textarea{white-space:pre-wrap;font-family:inherit;font-size:13.5px;line-height:1.65;color:#d5dbf0;
   background:transparent;border:none;min-height:320px;padding:0}
 .output textarea:focus{box-shadow:none}
@@ -258,9 +260,9 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
 /* ---------- modal ---------- */
 .modal{position:fixed;inset:0;background:rgba(5,8,18,.72);backdrop-filter:blur(4px);display:flex;
   align-items:center;justify-content:center;z-index:100;padding:20px}
-.modal-card{background:linear-gradient(180deg,#141f40,#0f1730);border:1px solid #2c3b6e;border-radius:18px;
+.modal-card{background:var(--card-bg);border:1px solid var(--line);border-radius:18px;
   padding:26px;max-width:600px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,.6);
-  animation:pop .22s ease}
+  animation:pop .22s ease;transition:.3s}
 @keyframes pop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
 .modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
 .modal-head h3{font-size:18px;font-weight:800}
@@ -300,7 +302,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
 
   #menuToggleBtn{
     display:flex;align-items:center;justify-content:center;position:fixed;top:14px;left:16px;
-    width:42px;height:42px;border-radius:12px;background:#141f40;border:1px solid var(--line);
+    width:42px;height:42px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
     color:var(--text);font-size:19px;z-index:120;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.4);
   }
 
@@ -310,7 +312,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
   #drawerBackdrop.show{display:block}
 
   #bottomTabs{
-    display:flex;position:fixed;left:0;right:0;bottom:0;height:66px;background:#0c1226;
+    display:flex;position:fixed;left:0;right:0;bottom:0;height:66px;background:var(--sidebar-bg);
     border-top:1px solid var(--line);z-index:110;padding:0 4px;
   }
   #bottomTabs .nav-btn,#bottomTabs .tab-more{
@@ -329,6 +331,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
 @media(min-width:921px){
   #sidebar{transform:none!important}
 }
+
 </style>
 </head>
 <body>
@@ -339,8 +342,8 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
   <div class="auth-card">
     <div class="brand">
       <div class="pulse"><span class="dish">📡</span></div>
-      <h1 id="authH1">Dispatch</h1>
-      <p>Your job agent working even while you sleep</p>
+      <h1 id="authH1"><span style="color:#FFB3D9">Job</span><span style="color:#4A90E2">Agent</span></h1>
+      <p>Your 24 hour agent is working even while you are busy or asleep</p>
     </div>
 
     <!-- sign in -->
@@ -353,7 +356,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
       <div class="err" id="siErr"></div>
       <button class="btn btn-primary btn-block" id="siBtn" onclick="doSignin()">Sign in</button>
       <div class="auth-links">
-        <a onclick="showAuth('signup')">New here? Create an account</a>
+        <a id="createAccountLink" onclick="showAuth('signup')">Create an account</a>
         <a onclick="showAuth('forgot')">Forgot password?</a>
       </div>
     </div>
@@ -414,7 +417,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
   <div class="shell">
     <aside id="sidebar">
       <div class="side-brand"><span class="logo">📡</span>
-        <div><b>Dispatch</b><small>working while you sleep</small></div>
+        <div><b><span style="color:#FFB3D9">Job</span><span style="color:#4A90E2">Agent</span></b><small>working while you sleep</small></div>
       </div>
       <nav>
         <button class="nav-btn active" data-view="dashboard" onclick="setView('dashboard')"><span class="ico">📡</span>Dashboard</button>
@@ -427,13 +430,6 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
       </nav>
       <div class="side-foot">
         <div class="agent-pill"><span class="dot idle" id="agentDot"></span><span id="agentText">waking up…</span></div>
-        <div class="theme-picker-wrap">
-          <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Choose a color theme" aria-label="Choose a color theme" aria-haspopup="true" aria-expanded="false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6 2 11c0 3 2 5 4.5 5H8a1.5 1.5 0 0 1 1.5 1.5c0 .8-.3 1.2-.3 2A2.5 2.5 0 0 0 11.7 22C17.5 22 22 17.5 22 12 22 6.5 17.5 2 12 2Z"/><circle cx="7.3" cy="10.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="10.8" cy="6.8" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.3" cy="7.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="17.3" cy="11.5" r="1.15" fill="currentColor" stroke="none"/></svg>
-            <span>Theme</span>
-          </button>
-          <div class="theme-menu hidden" id="themeMenu"></div>
-        </div>
         <button class="btn btn-ghost btn-sm btn-block" onclick="signOut()">Sign out</button>
       </div>
     </aside>
@@ -503,7 +499,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
       <section id="view-docs" class="hidden">
         <div class="card">
           <h3>Other documents</h3>
-          <p class="section-note">Optional — ID, certificates, qualifications. Not required to use Dispatch, but having these on hand speeds up applications that ask for them.</p>
+          <p class="section-note">Optional — ID, certificates, qualifications. Not required to use JobAgent, but having these on hand speeds up applications that ask for them.</p>
           <div class="row2">
             <div class="field"><label>Document type</label>
               <select id="docType"><option value="id">ID document</option><option value="certificate">Certificate</option><option value="qualification">Qualification</option><option value="other">Other</option></select>
@@ -681,25 +677,24 @@ function toast(msg,type){const t=document.createElement('div');t.className='toas
 
 /* ================= THEME PICKER ================= */
 const THEMES={
-  nebula:{label:'Nebula', accent:'#ffb454', accentRgb:'255,180,84', accent2:'#4fd1c5', accent2Rgb:'79,209,197',
-    tint:'#ffd9a3', btnA:'#ffb454', btnB:'#ff8e3c', btnText:'#221302',
-    btnShadow:'rgba(255,150,60,.25)', btnShadowHover:'rgba(255,150,60,.4)'},
-  signal:{label:'Signal', accent:'#4f9dff', accentRgb:'79,157,255', accent2:'#a3e635', accent2Rgb:'163,230,53',
-    tint:'#a8d1ff', btnA:'#4f9dff', btnB:'#2f7de0', btnText:'#071a33',
-    btnShadow:'rgba(79,157,255,.3)', btnShadowHover:'rgba(79,157,255,.45)'},
-  relay:{label:'Relay', accent:'#c084fc', accentRgb:'192,132,252', accent2:'#ff7ab8', accent2Rgb:'255,122,184',
-    tint:'#ddb8fe', btnA:'#c084fc', btnB:'#a855f7', btnText:'#24072f',
-    btnShadow:'rgba(192,132,252,.3)', btnShadowHover:'rgba(192,132,252,.45)'},
-  aurora:{label:'Aurora', accent:'#2dd4a7', accentRgb:'45,212,167', accent2:'#38bdf8', accent2Rgb:'56,189,248',
-    tint:'#8ff0d4', btnA:'#2dd4a7', btnB:'#14b892', btnText:'#052e24',
-    btnShadow:'rgba(45,212,167,.3)', btnShadowHover:'rgba(45,212,167,.45)'},
-  solstice:{label:'Solstice', accent:'#ffd166', accentRgb:'255,209,102', accent2:'#ff8f70', accent2Rgb:'255,143,112',
-    tint:'#ffe3a8', btnA:'#ffd166', btnB:'#ffab40', btnText:'#2e1900',
-    btnShadow:'rgba(255,209,102,.3)', btnShadowHover:'rgba(255,209,102,.45)'},
+  relay:{label:'Relay', bg:'#0a0f1e', panel:'#111a33', panel2:'#0d1428', line:'#23305a',
+    text:'#e9edf9', muted:'#8b96b8', cardBg:'linear-gradient(180deg,#121b38,#0f1730)', sidebarBg:'#0c1226', inputBg:'#0d1428',
+    accent:'#c084fc', accentRgb:'192,132,252', accent2:'#ff7ab8', accent2Rgb:'255,122,184',
+    tint:'#ddb8fe', btnA:'#ffb454', btnB:'#ff8e3c', btnText:'#221302',
+    btnShadow:'rgba(255,150,60,.25)', btnShadowHover:'rgba(255,150,60,.4)'}
 };
-function applyTheme(name){
-  const t=THEMES[name]||THEMES.nebula;
+function applyTheme(name='relay'){
+  const t=THEMES[name]||THEMES.relay;
   const r=document.documentElement.style;
+  r.setProperty('--bg',t.bg);
+  r.setProperty('--panel',t.panel);
+  r.setProperty('--panel2',t.panel2);
+  r.setProperty('--line',t.line);
+  r.setProperty('--text',t.text);
+  r.setProperty('--muted',t.muted);
+  r.setProperty('--card-bg',t.cardBg);
+  r.setProperty('--sidebar-bg',t.sidebarBg);
+  r.setProperty('--input-bg',t.inputBg);
   r.setProperty('--accent',t.accent);
   r.setProperty('--accent-rgb',t.accentRgb);
   r.setProperty('--accent2',t.accent2);
@@ -710,49 +705,9 @@ function applyTheme(name){
   r.setProperty('--btn-text',t.btnText);
   r.setProperty('--btn-shadow',t.btnShadow);
   r.setProperty('--btn-shadow-hover',t.btnShadowHover);
-  try{localStorage.setItem('dispatchTheme',name)}catch(e){}
-  renderThemeMenu(name);
 }
-function renderThemeMenu(active){
-  const menu=$('#themeMenu');
-  if(!menu) return;
-  menu.innerHTML=Object.keys(THEMES).map(key=>{
-    const t=THEMES[key];
-    const isActive=key===active;
-    return `<button type="button" class="theme-menu-item${isActive?' active':''}" data-theme="${key}">
-      <span class="theme-swatch" style="background:linear-gradient(135deg,${t.accent},${t.accent2})"></span>
-      ${esc(t.label)}${isActive?'<span class="check">✓</span>':''}
-    </button>`;
-  }).join('');
-  menu.querySelectorAll('.theme-menu-item').forEach(btn=>{
-    btn.addEventListener('click',()=>{applyTheme(btn.dataset.theme);closeThemeMenu()});
-  });
-}
-function openThemeMenu(){
-  $('#themeMenu').classList.remove('hidden');
-  $('#themeToggleBtn').setAttribute('aria-expanded','true');
-}
-function closeThemeMenu(){
-  $('#themeMenu').classList.add('hidden');
-  $('#themeToggleBtn').setAttribute('aria-expanded','false');
-}
-(function initThemePicker(){
-  let saved='nebula';
-  try{saved=localStorage.getItem('dispatchTheme')||'nebula'}catch(e){}
-  if(!THEMES[saved]) saved='nebula';
-  applyTheme(saved);
-  const btn=$('#themeToggleBtn');
-  btn.addEventListener('click',(e)=>{
-    e.stopPropagation();
-    $('#themeMenu').classList.contains('hidden')?openThemeMenu():closeThemeMenu();
-  });
-  document.addEventListener('click',(e)=>{
-    const wrap=$('.theme-picker-wrap');
-    if(wrap && !wrap.contains(e.target)) closeThemeMenu();
-  });
-  document.addEventListener('keydown',(e)=>{
-    if(e.key==='Escape') closeThemeMenu();
-  });
+(function initTheme(){
+  applyTheme('relay');
 })();
 
 /* ---------------- Password visibility toggles ---------------- */
@@ -781,11 +736,38 @@ async function doSignin(){
   try{
     const {data,error} = await sb.auth.signInWithPassword({email,password});
     if(error) throw error;
+    // Successful signin also counts as "this device has an account on it"
+    // — hide the Create-Account link from here on.
+    markAccountCreated();
     await enterApp(data.session.user);
   }catch(err){
     errorEl.textContent = err.message || 'Wrong email or password.';
   }finally{ btn.disabled=false; btn.textContent='Sign in'; }
 }
+
+/* ================= "SIGN IN CARD ONLY" GATE =================
+ * Once someone signs up or signs in on this browser, hide the
+ * "Create an account" link so returning users only see
+ * Sign in + Forgot password. Nothing prevents a new person from
+ * clearing storage and creating another account; the gate is UX
+ * safety, not access control (auth+RLS does the actual access work).
+ */
+const HAS_ACCOUNT_KEY = 'jobagent_account_exists';
+function markAccountCreated(){
+  try { localStorage.setItem(HAS_ACCOUNT_KEY, '1'); } catch(e) {}
+  hideCreateAccountLink();
+}
+function hideCreateAccountLink(){
+  const link = document.getElementById('createAccountLink');
+  if(link) link.style.display = 'none';
+  // If someone was on the signup panel when we hid it (e.g. arrived via
+  // the recovery link on a device that already has an account), route
+  // them to signin instead.
+  const suPanel = document.getElementById('p-signup');
+  if(suPanel && !suPanel.classList.contains('hidden')) showAuth('signin');
+}
+try { if(localStorage.getItem(HAS_ACCOUNT_KEY)) hideCreateAccountLink(); } catch(e) {}
+
 
 async function doSignup(){
   const errorEl=$('#suErr'); errorEl.textContent=''; errorEl.style.color='';
@@ -809,11 +791,14 @@ async function doSignup(){
       siErr.textContent='✔ Account created — check your inbox and click the confirmation link, then sign in below.';
       return;
     }
+    // First signup on this device — from now on the "Create an account"
+    // link is hidden and this browser only sees Sign in + Forgot password.
+    markAccountCreated();
     if(remember){
       await enterApp(data.session.user);
       // Pre-fill their name into the profile field right away
       $('#pfName').value = name;
-      toast('Welcome to Dispatch, '+name.split(' ')[0]+'! 🎉','ok');
+      toast('Welcome to JobAgent, '+name.split(' ')[0]+'! 🎉','ok');
     }else{
       // Registered, but "stay logged in" wasn't checked - sign back out and
       // send them to the sign-in form to log in with email + password.
@@ -1138,6 +1123,11 @@ const SA_SCOPED_SOURCES = new Set(['boschgroup','deloitte6','wnsglobalservices14
 function isSouthAfricanMatch(m){
   if(classifyLocationCountry(m.location)==='south_africa') return true;
   if(!m.location && m.company_name && SA_SCOPED_SOURCES.has(m.company_name.toLowerCase())) return true;
+  // Watched pages (is_custom_source=true) are user-added SA job boards/companies,
+  // so a blank location on one of THEIR postings still counts as South African
+  // instead of being silently dropped. Covers Pnet/CareerJunction/Job Mail/capitec
+  // and any future watched company without needing a hardcoded whitelist entry.
+  if(!m.location && m.is_custom_source) return true;
   return false;
 }
 
@@ -1600,7 +1590,12 @@ $('#cfYes').addEventListener('click', ()=>{ closeModal('confirmModal'); if(cfCb)
   // password" screen.
   if(window.location.hash.includes('type=recovery') || resetSessionReady) return;
   const {data:{session}} = await sb.auth.getSession();
-  if(session){ await enterApp(session.user); }
+  if(session){
+    // Any live session means this device has an account. Keep the
+    // Create-Account link hidden for future visits too.
+    markAccountCreated();
+    await enterApp(session.user);
+  }
 })();
 </script>
 </body>

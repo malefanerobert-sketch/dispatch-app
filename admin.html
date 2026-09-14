@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dispatch Admin</title>
+<title>JobAgent Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -93,7 +93,7 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
 
 <div id="authWrap">
   <div class="auth-card">
-    <h1>📡 Dispatch Admin</h1>
+    <h1>📡 JobAgent Admin</h1>
     <p>Sign in with your admin account.</p>
     <div class="field"><label>Email</label><input type="email" id="adEmail"></div>
     <div class="field"><label>Password</label><input type="password" id="adPass"></div>
@@ -104,7 +104,7 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
 
 <div id="app" class="hidden">
   <div class="topbar">
-    <b>📡 Dispatch Admin</b>
+    <b>📡 JobAgent Admin</b>
     <div class="topbar-actions">
       <div class="theme-picker-wrap">
         <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Choose a color theme" aria-label="Choose a color theme" aria-haspopup="true" aria-expanded="false">
@@ -118,11 +118,12 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
   </div>
   <main>
     <div id="deniedBox" class="denied hidden">
-      🔒 This account doesn't have Dispatch Admin access.
+      🔒 This account doesn't have JobAgent Admin access.
     </div>
     <div id="mainBox">
       <div class="tabs">
         <button class="tab active" data-tab="accounts" onclick="setTab('accounts')">Accounts</button>
+        <button class="tab" data-tab="sources" onclick="setTab('sources')">Job Sources</button>
         <button class="tab" data-tab="settings" onclick="setTab('settings')">AI &amp; Agent settings</button>
       </div>
 
@@ -132,12 +133,94 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
         <div class="card"><div id="acctList"></div></div>
       </section>
 
+      <!-- JOB SOURCES -->
+      <section id="tab-sources" class="hidden">
+        <div class="card" style="margin-bottom:18px">
+          <h3 style="margin-bottom:6px;font-size:15px">📋 Default Job Sources</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            These are pre-configured job sources that come with JobAgent. Each is filtered to South African jobs only (8am-4pm SA time daily).
+            Users can individually disable any source in their settings. Admin cannot globally remove sources here — use the settings per-user instead.</p>
+          <div id="sourcesList" style="display:grid;gap:14px"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:6px;font-size:15px">📊 User Sources Summary</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Overview of which users have each source enabled/disabled.</p>
+          <div id="sourceSummary"></div>
+        </div>
+      </section>
+
       <!-- AI & AGENT SETTINGS -->
       <section id="tab-settings" class="hidden">
+        <!-- MASTER AGENT ON/OFF SWITCH -->
+        <div class="card" id="masterSwitchCard" style="margin-bottom:18px;border:2px solid var(--line)">
+          <h3 style="margin-bottom:6px;font-size:15px">🔴 Master Agent Switch</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            The kill-switch for the entire Agent. When OFF, the Railway worker skips every discovery and apply run
+            for every user — no tokens spent, no jobs applied. Individual account pause/reactivate still works;
+            this is the fleet-wide override on top of that. Default: OFF. Turn ON only when you're ready to serve real users.</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:20px;font-weight:800" id="masterSwitchLabel">⚫ OFF — agent is standing down</div>
+              <div style="color:var(--muted);font-size:13px;margin-top:4px" id="masterSwitchSub">No worker activity, no API tokens spent.</div>
+            </div>
+            <button class="btn btn-primary" id="masterSwitchBtn" onclick="toggleAgentEnabled()" style="font-size:15px;padding:12px 22px">
+              Turn Agent ON
+            </button>
+          </div>
+        </div>
+
+        <!-- AGENT TIME WINDOW -->
+        <div class="card" style="margin-bottom:18px">
+          <h3 style="margin-bottom:6px;font-size:15px">⏰ Agent Time Window</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            When the Agent runs. The worker only performs discovery inside this window — outside it, the run exits
+            immediately and no tokens are spent. Set start and end hour (0–23) and the timezone they're expressed in.
+            Master switch still applies on top of this: if it's OFF, nothing runs regardless of the window.</p>
+          <div class="row2">
+            <div class="field"><label>Start hour (0–23)</label><input type="number" id="setStartHour" min="0" max="23" value="8"></div>
+            <div class="field"><label>End hour (0–23)</label><input type="number" id="setEndHour" min="0" max="23" value="16"></div>
+          </div>
+          <div class="field">
+            <label>Timezone</label>
+            <select id="setTimezone">
+              <option value="Africa/Johannesburg">Africa/Johannesburg (South Africa)</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="setTimeWindowBtn" onclick="saveTimeWindow()">💾 Save Time Window</button>
+        </div>
+
+        <!-- ADD NEW JOB SOURCE -->
+        <div class="card" style="margin-bottom:18px">
+          <h3 style="margin-bottom:6px;font-size:15px">➕ Add New Job Source</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+            Add a new job source that every user can enable in their settings. All sources are automatically
+            country-filtered to South Africa and become available to all existing accounts on save.</p>
+          <div class="row2">
+            <div class="field"><label>Source name</label><input type="text" id="newSourceName" placeholder="e.g. LinkedIn ZA"></div>
+            <div class="field"><label>Source type</label>
+              <select id="newSourceType">
+                <option value="custom">Custom API</option>
+                <option value="jobmail">Jobmail</option>
+                <option value="jnet">Jnet</option>
+                <option value="careerjunction">CareerJunction</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>API endpoint</label><input type="text" id="newSourceEndpoint" placeholder="https://api.example.com/search"></div>
+            <div class="field"><label>Requires an API key?</label>
+              <select id="newSourceRequiresKey"><option value="false">No</option><option value="true">Yes</option></select>
+            </div>
+          </div>
+          <div class="field"><label>Description</label><input type="text" id="newSourceDesc" placeholder="Short description users will see"></div>
+          <button class="btn btn-primary" id="addSourceBtn" onclick="addNewJobSource()">➕ Add source</button>
+        </div>
+
         <div class="card" style="margin-bottom:18px">
           <h3 style="margin-bottom:6px;font-size:15px">Shared AI key</h3>
           <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
-            One DigitalHouse-owned key powers the Agent for every Dispatch user — match scoring, CV/cover letter/motivational
+            One DigitalHouse-owned key powers the Agent for every JobAgent user — match scoring, CV/cover letter/motivational
             letter drafting, reading a user's Watched pages, and applying on their behalf. Users never see or manage this
             (they only ever see the word "Agent" in the app); the cost is recovered through their subscription, not billed
             to their own accounts.</p>
@@ -184,9 +267,13 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
 <script>
 const SUPABASE_URL = 'https://celylskveytdwvuvsuvx.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_QBseann9rrODgfZP9V0oXg_u9brFEVh';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let sb;
+(async () => {
+  while (!window.supabase) await new Promise(r => setTimeout(r, 10));
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+})();
 
-let accounts=[];
+let accounts=[], jobSources=[], userJobSources=[];
 function $(s){return document.querySelector(s)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(msg,type){const t=document.createElement('div');t.className='toast'+(type?' '+type:'');
@@ -291,13 +378,15 @@ async function enterApp(){
   }
   await loadAccounts();
   await loadSettings();
+  await loadSources();
 }
 
 function setTab(name){
-  ['accounts','settings'].forEach(t=>{
+  ['accounts','sources','settings'].forEach(t=>{
     document.querySelector('.tab[data-tab="'+t+'"]').classList.toggle('active', t===name);
     $('#tab-'+t).classList.toggle('hidden', t!==name);
   });
+  if(name==='sources'){ loadSources(); }
 }
 
 /* ================= AI & AGENT SETTINGS (shared key + prompt) ================= */
@@ -310,7 +399,126 @@ async function loadSettings(){
     $('#setKey').value = appSettings.ai_api_key || '';
     $('#setModel').value = appSettings.ai_model || '';
     $('#setAgentPrompt').value = appSettings.agent_prompt || '';
+    // Time window
+    $('#setStartHour').value = appSettings.agent_run_start_hour ?? 8;
+    $('#setEndHour').value   = appSettings.agent_run_end_hour   ?? 16;
+    $('#setTimezone').value  = appSettings.agent_timezone || 'Africa/Johannesburg';
+    renderMasterSwitch(appSettings.agent_enabled === true);
   }
+}
+
+async function saveTimeWindow(){
+  const startHour = parseInt($('#setStartHour').value, 10);
+  const endHour   = parseInt($('#setEndHour').value, 10);
+  const timezone  = $('#setTimezone').value;
+  if(!Number.isFinite(startHour) || startHour < 0 || startHour > 23){ toast('⚠ Start hour must be 0–23','err'); return; }
+  if(!Number.isFinite(endHour)   || endHour   < 0 || endHour   > 23){ toast('⚠ End hour must be 0–23','err'); return; }
+  if(startHour >= endHour){ toast('⚠ End hour must be greater than start hour','err'); return; }
+  const btn = $('#setTimeWindowBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const {error} = await sb.from('dispatch_settings').update({
+    agent_run_start_hour: startHour,
+    agent_run_end_hour:   endHour,
+    agent_timezone:       timezone,
+    updated_at: new Date().toISOString()
+  }).eq('id', true);
+  btn.disabled = false; btn.textContent = '💾 Save Time Window';
+  if(error){ toast('⚠ '+error.message,'err'); return; }
+  if(appSettings){
+    appSettings.agent_run_start_hour = startHour;
+    appSettings.agent_run_end_hour   = endHour;
+    appSettings.agent_timezone       = timezone;
+  }
+  toast('Time window saved — worker picks it up on the next run','ok');
+}
+
+async function addNewJobSource(){
+  const name       = ($('#newSourceName').value || '').trim();
+  const sourceType = ($('#newSourceType').value || 'custom').trim();
+  const endpoint   = ($('#newSourceEndpoint').value || '').trim();
+  const requiresKey= ($('#newSourceRequiresKey').value === 'true');
+  const desc       = ($('#newSourceDesc').value || '').trim();
+  if(!name){ toast('⚠ Source name is required','err'); return; }
+  if(!endpoint){ toast('⚠ API endpoint is required','err'); return; }
+
+  // job_sources requires base_url (NOT NULL) and automation_risk (NOT NULL)
+  // and the boolean column is api_requires_key (not requires_api_key).
+  // source_type has a CHECK constraint (adzuna|remoteok|jobmail|jnet|careerjunction|custom).
+  const allowedTypes = ['adzuna','remoteok','jobmail','jnet','careerjunction','custom'];
+  const safeType = allowedTypes.includes(sourceType) ? sourceType : 'custom';
+  let baseUrl = endpoint;
+  try { baseUrl = new URL(endpoint).origin; } catch { /* fall back to endpoint */ }
+
+  const btn = $('#addSourceBtn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  const newSource = {
+    name, source_type: safeType, base_url: baseUrl, api_endpoint: endpoint,
+    api_requires_key: requiresKey, automation_risk: 'medium',
+    description: desc, country_filter: 'ZA', active: true,
+    created_at: new Date().toISOString()
+  };
+  const {data, error} = await sb.from('job_sources').insert([newSource]).select();
+  if(error){ btn.disabled=false; btn.textContent='➕ Add source'; toast('⚠ '+error.message,'err'); return; }
+
+  // Wire this new source into every existing seeker so they see it in
+  // their settings on next load. RLS on user_job_sources allows admins.
+  if(data && data.length){
+    const sourceId = data[0].id;
+    const {data: allUsers, error: usersErr} = await sb.from('job_seekers').select('id');
+    if(!usersErr && allUsers && allUsers.length){
+      const rows = allUsers.map(u => ({
+        user_id: u.id, job_source_id: sourceId, enabled: true, created_at: new Date().toISOString()
+      }));
+      await sb.from('user_job_sources').insert(rows);
+    }
+  }
+
+  btn.disabled = false; btn.textContent = '➕ Add source';
+  $('#newSourceName').value = '';
+  $('#newSourceType').value = 'custom';
+  $('#newSourceEndpoint').value = '';
+  $('#newSourceRequiresKey').value = 'false';
+  $('#newSourceDesc').value = '';
+  toast('Source added and enabled for all existing users','ok');
+  loadSources();
+}
+
+function renderMasterSwitch(on){
+  const card = $('#masterSwitchCard');
+  const label = $('#masterSwitchLabel');
+  const sub = $('#masterSwitchSub');
+  const btn = $('#masterSwitchBtn');
+  if(on){
+    card.style.borderColor = 'var(--ok)';
+    card.style.background = 'linear-gradient(180deg,rgba(52,211,153,.10),rgba(52,211,153,.02))';
+    label.innerHTML = '🟢 ON — agent is running for active users';
+    sub.textContent = 'Discovery + apply cycles are active. Only accounts marked "active" are processed.';
+    btn.textContent = '⏸ Turn Agent OFF';
+    btn.className = 'btn btn-danger';
+  } else {
+    card.style.borderColor = 'var(--line)';
+    card.style.background = '';
+    label.innerHTML = '⚫ OFF — agent is standing down';
+    sub.textContent = 'No worker activity, no API tokens spent.';
+    btn.textContent = '▶ Turn Agent ON';
+    btn.className = 'btn btn-primary';
+  }
+}
+
+async function toggleAgentEnabled(){
+  const btn = $('#masterSwitchBtn');
+  const current = appSettings && appSettings.agent_enabled === true;
+  const next = !current;
+  btn.disabled = true;
+  btn.textContent = next ? 'Turning ON…' : 'Turning OFF…';
+  const {error} = await sb.from('dispatch_settings').update({
+    agent_enabled: next, updated_at: new Date().toISOString()
+  }).eq('id', true);
+  btn.disabled = false;
+  if(error){ toast('⚠ '+error.message,'err'); renderMasterSwitch(current); return; }
+  if(appSettings) appSettings.agent_enabled = next;
+  renderMasterSwitch(next);
+  toast(next ? 'Agent turned ON — active users will be processed on next run' : 'Agent turned OFF — no more runs until re-enabled','ok');
 }
 async function saveSettings(){
   const provider=$('#setProvider').value;
@@ -341,15 +549,164 @@ function renderAccounts(){
   if(!list.length){ el.innerHTML='<div class="empty">No accounts found.</div>'; return; }
   el.innerHTML = list.map(a=>{
     const isPaused = a.status === 'paused';
+    const apiProvider = a.api_provider || 'company';
+    const discoveryMode = a.discovery_mode || 'manual';
     return '<div class="row">'+
       '<div class="grow"><b>'+esc(a.full_name||'(no name)')+'</b><div class="sub">'+esc(a.dedicated_email||'')+'</div></div>'+
       '<span class="pill '+(isPaused?'gray':'green')+'">'+(isPaused?'paused':'active')+'</span>'+
       '<span class="pill '+(a.application_mode==='automatic'?'amber':'gray')+'">'+esc(a.application_mode||'approval')+'</span>'+
+      '<span class="pill '+(apiProvider==='user'?'amber':'gray')+'">'+esc(apiProvider==='user'?'User API':'Company API')+'</span>'+
+      '<span class="pill '+(discoveryMode==='auto'?'amber':discoveryMode==='both'?'green':'gray')+'">'+esc(discoveryMode==='auto'?'Auto':(discoveryMode==='both'?'Manual+Auto':'Manual'))+'</span>'+
       '<span style="color:var(--muted);font-size:12px">Titles: '+esc((a.job_title_keywords||[]).join(', ')||'—')+'</span>'+
+      '<button class="btn btn-sm" data-toggle-details="'+a.id+'">⚙ Settings</button>'+
       '<button class="btn btn-sm" data-toggle-status="'+a.id+'">'+(isPaused?'▶ Reactivate':'⏸ Pause')+'</button>'+
       '<button class="btn btn-danger btn-sm" data-delete-acct="'+a.id+'">🗑 Delete</button>'+
+      '<div class="detail" id="detail-'+a.id+'">'+
+        '<h4 style="margin-bottom:14px;font-size:13px;font-weight:700;text-transform:uppercase;color:var(--accent)">API &amp; Discovery Settings</h4>'+
+        '<div class="row2">'+
+          '<div class="field">'+
+            '<label>API Provider</label>'+
+            '<select data-api-provider="'+a.id+'"><option value="company">Company API (JobAgent Adzuna)</option><option value="user">User\'s Own API Key</option></select>'+
+          '</div>'+
+          '<div class="field">'+
+            '<label>Discovery Mode</label>'+
+            '<select data-discovery-mode="'+a.id+'"><option value="manual">Manual (watched pages only)</option><option value="auto">Automatic (job board search only)</option><option value="both">Both manual + automatic</option></select>'+
+          '</div>'+
+        '</div>'+
+        '<div class="field" id="userKeyField-'+a.id+'" style="display:none">'+
+          '<label>User API Key (paste their key)</label>'+
+          '<input type="password" data-user-api-key="'+a.id+'" placeholder="sk-… or their provider key">'+
+        '</div>'+
+        '<div class="field">'+
+          '<label><input type="checkbox" data-remote-only="'+a.id+'" style="width:auto;margin-right:6px"> Remote jobs only</label>'+
+        '</div>'+
+        '<button class="btn btn-primary btn-sm" data-save-api="'+a.id+'">💾 Save API Settings</button>'+
+        '<div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--line)">'+
+          '<h4 style="margin-bottom:12px;font-size:13px;font-weight:700;text-transform:uppercase;color:var(--accent)">Auto-Search Sources</h4>'+
+          '<div id="userSources-'+a.id+'" style="display:flex;flex-direction:column;gap:8px"></div>'+
+        '</div>'+
+      '</div>'+
       '</div>';
   }).join('');
+
+  el.querySelectorAll('[data-toggle-details]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id=btn.dataset.toggleDetails;
+      const detail=$('#detail-'+id);
+      if(!detail) return;
+      detail.classList.toggle('open');
+      btn.textContent = detail.classList.contains('open') ? '⚙ Close' : '⚙ Settings';
+      if(detail.classList.contains('open')){
+        renderUserSources(id);
+      }
+    });
+  });
+
+  // Populate user sources in detail panel
+  function renderUserSources(userId){
+    const container = $(`#userSources-${userId}`);
+    if(!container) return;
+
+    const userSrcs = userJobSources.filter(ujs=>ujs.user_id===userId);
+    if(!userSrcs.length){
+      container.innerHTML = '<div style="color:var(--muted);font-size:12px">No sources configured.</div>';
+      return;
+    }
+
+    container.innerHTML = userSrcs.map(ujs=>{
+      const src = jobSources.find(s=>s.id===ujs.job_source_id);
+      if(!src) return '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border-radius:8px;border:1px solid var(--line)">
+        <input type="checkbox" data-user-source="${userId}-${ujs.id}" ${ujs.enabled?'checked':''} style="width:auto;accent-color:var(--accent)">
+        <span style="flex:1">${esc(src.name)}</span>
+        <span class="pill ${src.country_filter==='ZA'?'green':'gray'}">${esc(src.country_filter)}</span>
+      </div>`;
+    }).join('');
+
+    // Add event listeners for source toggles
+    container.querySelectorAll('[data-user-source]').forEach(chk=>{
+      chk.addEventListener('change', async ()=>{
+        const [userId, ujsId] = chk.dataset.userSource.split('-');
+        const ujs = userJobSources.find(u=>u.id===ujsId);
+        if(!ujs) return;
+        const src = jobSources.find(s=>s.id===ujs.job_source_id);
+
+        chk.disabled = true;
+        const {error} = await sb.from('user_job_sources').update({
+          enabled: chk.checked,
+          disabled_at: chk.checked ? null : new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }).eq('id', ujs.id);
+        chk.disabled = false;
+
+        if(error){ toast('⚠ '+error.message,'err'); chk.checked=!chk.checked; return; }
+        ujs.enabled = chk.checked;
+        toast(chk.checked ? `${src.name} enabled for this user` : `${src.name} disabled for this user`,'ok');
+      });
+    });
+  }
+
+  el.querySelectorAll('[data-api-provider]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const id=sel.dataset.apiProvider;
+      const userKeyField=$('#userKeyField-'+id);
+      if(sel.value==='user'){ userKeyField.style.display='block'; }
+      else { userKeyField.style.display='none'; }
+    });
+    // Set initial state
+    sel.value = accounts.find(a=>a.id===sel.dataset.apiProvider)?.api_provider || 'company';
+    if(sel.value==='user'){ $(`#userKeyField-${sel.dataset.apiProvider}`).style.display='block'; }
+  });
+
+  el.querySelectorAll('[data-discovery-mode]').forEach(sel=>{
+    const id=sel.dataset.discoveryMode;
+    sel.value = accounts.find(a=>a.id===id)?.discovery_mode || 'manual';
+  });
+
+  el.querySelectorAll('[data-user-api-key]').forEach(inp=>{
+    const id=inp.dataset.userApiKey;
+    const acct=accounts.find(a=>a.id===id);
+    if(acct?.api_key){ inp.value=acct.api_key; }
+  });
+
+  el.querySelectorAll('[data-remote-only]').forEach(chk=>{
+    const id=chk.dataset.remoteOnly;
+    const acct=accounts.find(a=>a.id===id);
+    chk.checked = acct?.remote_only === true;
+  });
+
+  el.querySelectorAll('[data-save-api]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id=btn.dataset.saveApi;
+      const apiProvider = $(`[data-api-provider="${id}"]`).value;
+      const discoveryMode = $(`[data-discovery-mode="${id}"]`).value;
+      const userApiKey = $(`[data-user-api-key="${id}"]`).value.trim() || null;
+      const remoteOnly = $(`[data-remote-only="${id}"]`).checked;
+
+      btn.disabled=true;
+      btn.textContent='Saving…';
+      const {error} = await sb.from('job_seekers').update({
+        api_provider: apiProvider,
+        api_key: apiProvider==='user' ? userApiKey : null,
+        discovery_mode: discoveryMode,
+        remote_only: remoteOnly,
+        updated_at: new Date().toISOString()
+      }).eq('id', id);
+      btn.disabled=false;
+      btn.textContent='💾 Save API Settings';
+
+      if(error){ toast('⚠ '+error.message,'err'); return; }
+      const acct=accounts.find(a=>a.id===id);
+      if(acct){
+        acct.api_provider=apiProvider;
+        acct.api_key=userApiKey;
+        acct.discovery_mode=discoveryMode;
+        acct.remote_only=remoteOnly;
+      }
+      toast('API settings saved ✓','ok');
+      renderAccounts();
+    });
+  });
 
   el.querySelectorAll('[data-toggle-status]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -369,7 +726,7 @@ function renderAccounts(){
     btn.addEventListener('click', async ()=>{
       const id=btn.dataset.deleteAcct;
       const acct=accounts.find(a=>a.id===id);
-      const ok = confirm('Delete '+(acct.full_name||'this account')+'? This permanently removes their profile, resume, matches, applications, documents, and watched pages. Their login itself is not removed (that needs the same self-service delete flow they\'d use themselves). This can\'t be undone.');
+      const ok = confirm("Delete "+(acct.full_name||"this account")+"? This permanently removes their profile, resume, matches, applications, documents, and watched pages. Their login itself is not removed (that needs the same self-service delete flow they'd use themselves). This can't be undone.");
       if(!ok) return;
       btn.disabled=true;
       const {error} = await sb.from('job_seekers').delete().eq('id', id);
@@ -379,6 +736,80 @@ function renderAccounts(){
       renderAccounts();
     });
   });
+}
+
+/* ================= JOB SOURCES ================= */
+async function loadSources(){
+  const {data:sources, error:srcErr} = await sb.from('job_sources').select('*').order('name');
+  jobSources = srcErr ? [] : (sources||[]);
+
+  const {data:userSrcs, error:usrErr} = await sb.from('user_job_sources').select('*');
+  userJobSources = usrErr ? [] : (userSrcs||[]);
+
+  renderSources();
+}
+
+function renderSources(){
+  const el=$('#sourcesList');
+  if(!jobSources.length){ el.innerHTML='<div style="color:var(--muted)">No sources configured.</div>'; return; }
+
+  el.innerHTML = jobSources.map(src=>{
+    const enabledCount = userJobSources.filter(ujs=>ujs.job_source_id===src.id && ujs.enabled).length;
+    const totalCount = userJobSources.filter(ujs=>ujs.job_source_id===src.id).length;
+    return `<div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b>${esc(src.name)}</b>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill ${src.active?'green':'gray'}">${src.active?'Active':'Inactive'}</span>
+          <button class="btn btn-danger btn-sm" data-delete-source="${src.id}">🗑 Remove</button>
+        </div>
+      </div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:8px">
+        ${esc(src.description||src.source_type)}<br>
+        Filter: <strong>${esc(src.country_filter)}</strong> | Search: 8am-4pm SA daily<br>
+        <span style="color:#a3e635">${enabledCount}/${totalCount}</span> users have this enabled
+      </div>
+    </div>`;
+  }).join('');
+
+  // Add delete handlers for sources
+  el.querySelectorAll('[data-delete-source]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const sourceId=btn.dataset.deleteSource;
+      const src=jobSources.find(s=>s.id===sourceId);
+      const ok=confirm('Remove '+src.name+' from the app? All users will lose access to this source. This cannot be undone.');
+      if(!ok) return;
+      btn.disabled=true;
+      const {error}=await sb.from('job_sources').delete().eq('id',sourceId);
+      btn.disabled=false;
+      if(error){ toast('⚠ '+error.message,'err'); return; }
+      jobSources=jobSources.filter(s=>s.id!==sourceId);
+      toast(src.name+' removed from app','ok');
+      loadSources();
+    });
+  });
+
+  // Render summary
+  const summary=$('#sourceSummary');
+  const rows=[];
+  userJobSources.forEach(ujs=>{
+    const user=accounts.find(a=>a.id===ujs.user_id);
+    const src=jobSources.find(s=>s.id===ujs.job_source_id);
+    if(user && src){
+      rows.push({user:user.full_name,source:src.name,enabled:ujs.enabled});
+    }
+  });
+
+  if(!rows.length){ summary.innerHTML='<div style="color:var(--muted)">No configuration data.</div>'; return; }
+
+  summary.innerHTML='<table style="width:100%;border-collapse:collapse">'+
+    '<tr style="border-bottom:1px solid var(--line)"><th style="text-align:left;padding:8px;color:var(--muted);font-size:12px">User</th><th style="text-align:left;padding:8px;color:var(--muted);font-size:12px">Source</th><th style="text-align:center;padding:8px;color:var(--muted);font-size:12px">Status</th></tr>'+
+    rows.map(r=>`<tr style="border-bottom:1px solid #1a2444">
+      <td style="padding:8px;font-size:13px">${esc(r.user)}</td>
+      <td style="padding:8px;font-size:13px">${esc(r.source)}</td>
+      <td style="padding:8px;text-align:center"><span class="pill ${r.enabled?'green':'gray'}">${r.enabled?'Enabled':'Disabled'}</span></td>
+    </tr>`).join('')+
+    '</table>';
 }
 
 /* ================= BOOT ================= */
