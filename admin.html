@@ -559,7 +559,7 @@ function renderAccounts(){
       '<div class="grow"><b>'+esc(a.full_name||'(no name)')+'</b><div class="sub">'+esc(a.dedicated_email||'')+'</div></div>'+
       '<span class="pill '+(isPaused?'gray':'green')+'">'+(isPaused?'paused':'active')+'</span>'+
       '<span class="pill '+(a.application_mode==='automatic'?'amber':'gray')+'">'+esc(a.application_mode||'approval')+'</span>'+
-      '<span class="pill '+(apiProvider==='user'?'amber':'gray')+'">'+esc(apiProvider==='user'?'User API':'Company API')+'</span>'+
+      '<span class="pill '+(apiProvider==='user'?'amber':(apiProvider==='none'?'gray':'gray'))+'">'+esc(apiProvider==='user'?'User API':(apiProvider==='none'?'No AI':'Company API'))+'</span>'+
       '<span class="pill '+(discoveryMode==='auto'?'amber':discoveryMode==='both'?'green':'gray')+'">'+esc(discoveryMode==='auto'?'Auto':(discoveryMode==='both'?'Manual+Auto':'Manual'))+'</span>'+
       '<span style="color:var(--muted);font-size:12px">Titles: '+esc((a.job_title_keywords||[]).join(', ')||'—')+'</span>'+
       '<button class="btn btn-sm" data-toggle-details="'+a.id+'">⚙ Settings</button>'+
@@ -570,7 +570,7 @@ function renderAccounts(){
         '<div class="row2">'+
           '<div class="field">'+
             '<label>AI Key</label>'+
-            '<select data-api-provider="'+a.id+'"><option value="company">Company API (shared AI key)</option><option value="user">User\'s Own API Key</option></select>'+
+            '<select data-api-provider="'+a.id+'"><option value="company">Company API (shared AI key)</option><option value="user">User\'s Own API Key</option><option value="none">No AI — skip entirely (never use company key)</option></select>'+
           '</div>'+
           '<div class="field">'+
             '<label>Discovery Mode</label>'+
