@@ -580,6 +580,65 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
             <input type="file" id="pfResume" accept=".pdf,.doc,.docx"><div class="hint" id="pfResumeName"></div></div>
           <button class="btn btn-primary" id="pfSaveBtn" onclick="saveProfile()">💾 Save and apply</button>
         </div>
+        <div class="card" style="margin-bottom:18px">
+          <h3>Additional details</h3>
+          <p class="hint" style="margin-bottom:14px">Optional, but many South African application forms ask for these directly — ID number, address, current role, qualifications. Anything you leave blank here is simply left blank on a form that asks for it; your agent never guesses or invents an answer to a hard question like these.</p>
+
+          <div class="row2">
+            <div class="field"><label>Date of birth</label><input type="date" id="pfDob"></div>
+            <div class="field"><label>Alternate phone</label><input id="pfPhoneAlt"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Gender</label>
+              <select id="pfGender"><option value="">Prefer not to say</option><option value="Male">Male</option><option value="Female">Female</option><option value="Non-binary">Non-binary</option><option value="Other">Other</option></select></div>
+            <div class="field"><label>Race (EE reporting, as often required on SA applications)</label>
+              <select id="pfRace"><option value="">Prefer not to say</option><option value="African">African</option><option value="Coloured">Coloured</option><option value="Indian">Indian</option><option value="White">White</option><option value="Other">Other</option></select></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nationality</label><input id="pfNationality" placeholder="e.g. South African"></div>
+            <div class="field"><label>ID type</label>
+              <select id="pfIdType"><option value="">Select…</option><option value="SA ID">South African ID</option><option value="Passport">Passport</option><option value="Work Permit">Work Permit</option><option value="Other">Other</option></select></div>
+          </div>
+          <div class="field"><label>ID / passport number</label><input id="pfIdNumber"></div>
+          <div class="field"><label>Physical address</label><input id="pfAddress" placeholder="Street address"></div>
+          <div class="row2">
+            <div class="field"><label>City</label><input id="pfCity"></div>
+            <div class="field"><label>Province</label>
+              <select id="pfProvince"><option value="">Select…</option><option>Eastern Cape</option><option>Free State</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Limpopo</option><option>Mpumalanga</option><option>North West</option><option>Northern Cape</option><option>Western Cape</option></select></div>
+          </div>
+          <div class="field"><label>Postal code</label><input id="pfPostalCode"></div>
+
+          <div class="row2">
+            <div class="field"><label>Current employer</label><input id="pfEmployer"></div>
+            <div class="field"><label>Current position</label><input id="pfPosition"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Years of experience</label><input type="number" id="pfYearsExp" min="0"></div>
+            <div class="field"><label>Highest qualification</label><input id="pfQualification" placeholder="e.g. BCom Honours"></div>
+          </div>
+          <div class="field"><label>Field of study</label><input id="pfFieldOfStudy"></div>
+          <div class="field"><label>Skills (comma separated)</label><input id="pfSkills" placeholder="e.g. Excel, SQL, Project management"></div>
+          <div class="row2">
+            <div class="field"><label>Languages (comma separated)</label><input id="pfLanguages" placeholder="e.g. English, Zulu, Afrikaans"></div>
+            <div class="field"><label>Driver's licence (comma separated)</label><input id="pfDriversLicense" placeholder="e.g. Code 8, Code 10"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label style="display:block"><input type="checkbox" id="pfOwnTransport" style="width:auto"> Own transport</label></div>
+            <div class="field"><label style="display:block"><input type="checkbox" id="pfRelocate" style="width:auto"> Willing to relocate</label></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Notice period (days)</label><input type="number" id="pfNoticeDays" min="0"></div>
+            <div class="field"><label>Available from</label><input type="date" id="pfAvailableFrom"></div>
+          </div>
+          <div class="field"><label>Short bio</label><textarea id="pfBio" rows="3" placeholder="A couple of sentences about you — used verbatim for 'tell us about yourself' style questions"></textarea></div>
+          <div class="field"><label>Hobbies / interests</label><input id="pfHobbies"></div>
+          <div class="row2">
+            <div class="field"><label style="display:block"><input type="checkbox" id="pfPressureOk" style="width:auto"> Comfortable working under pressure</label></div>
+            <div class="field"><label style="display:block"><input type="checkbox" id="pfTeamPlayer" style="width:auto"> Team player</label></div>
+          </div>
+          <div class="field"><label style="display:block"><input type="checkbox" id="pfAutofillSoft" style="width:auto" checked> Let my agent compose short answers to open-ended questions (e.g. "why this role?") from the details above, when the exact answer isn't here</label></div>
+          <button class="btn btn-primary" id="pfSaveExtraBtn" onclick="saveProfile()">💾 Save additional details</button>
+        </div>
         <div class="card">
           <h3 style="color:#ff8f8f">Danger zone</h3>
           <div class="danger-box">
@@ -927,6 +986,20 @@ function toggleDrawer(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
 
 /* ================= PROFILE ================= */
+// "Additional details" fields (the ones the AI application-filler can use
+// beyond name/email/phone/titles/locations/salary/resume) — grouped by how
+// they're read from/written to a job_seekers row, so loadProfile()/
+// saveProfile() can loop instead of repeating 25 near-identical lines.
+const PF_TEXT_FIELDS = { pfPhoneAlt:'phone_alt', pfGender:'gender', pfRace:'race', pfNationality:'nationality',
+  pfIdType:'id_type', pfIdNumber:'id_number', pfAddress:'physical_address', pfCity:'city', pfProvince:'province',
+  pfPostalCode:'postal_code', pfEmployer:'current_employer', pfPosition:'current_position',
+  pfQualification:'highest_qualification', pfFieldOfStudy:'field_of_study', pfBio:'bio', pfHobbies:'hobbies' };
+const PF_DATE_FIELDS = { pfDob:'date_of_birth', pfAvailableFrom:'available_from' };
+const PF_NUMBER_FIELDS = { pfYearsExp:'years_experience', pfNoticeDays:'notice_period_days' };
+const PF_LIST_FIELDS = { pfSkills:'skills', pfLanguages:'languages', pfDriversLicense:'drivers_license' };
+const PF_CHECK_FIELDS = { pfOwnTransport:'own_transport', pfRelocate:'willing_to_relocate',
+  pfPressureOk:'pressure_ok', pfTeamPlayer:'team_player' };
+
 async function loadProfile(){
   // Always start from a clean, blank form — never leave stale/previous
   // values on screen while the fresh row is fetched (or if there is none).
@@ -939,6 +1012,12 @@ async function loadProfile(){
   $('#pfSalaryMax').value = '';
   $('#pfResumeName').textContent = '';
   $('#pfResume').value = '';
+  Object.keys(PF_TEXT_FIELDS).forEach(id=>{ $('#'+id).value=''; });
+  Object.keys(PF_DATE_FIELDS).forEach(id=>{ $('#'+id).value=''; });
+  Object.keys(PF_NUMBER_FIELDS).forEach(id=>{ $('#'+id).value=''; });
+  Object.keys(PF_LIST_FIELDS).forEach(id=>{ $('#'+id).value=''; });
+  Object.keys(PF_CHECK_FIELDS).forEach(id=>{ $('#'+id).checked=false; });
+  $('#pfAutofillSoft').checked = true; // default TRUE, matches agent_can_autofill_soft's DB default
   currentSeeker = null;
 
   const {data} = await sb.from('job_seekers').select('*').eq('user_id', currentUser.id).maybeSingle();
@@ -952,13 +1031,25 @@ async function loadProfile(){
     $('#pfSalaryMin').value = data.salary_min || '';
     $('#pfSalaryMax').value = data.salary_max || '';
     $('#pfResumeName').textContent = data.resume_url ? '✓ CV on file' : '';
+    Object.entries(PF_TEXT_FIELDS).forEach(([id,col])=>{ $('#'+id).value = data[col] || ''; });
+    Object.entries(PF_DATE_FIELDS).forEach(([id,col])=>{ $('#'+id).value = data[col] || ''; });
+    Object.entries(PF_NUMBER_FIELDS).forEach(([id,col])=>{ $('#'+id).value = (data[col]===0 || data[col]) ? data[col] : ''; });
+    Object.entries(PF_LIST_FIELDS).forEach(([id,col])=>{ $('#'+id).value = (data[col]||[]).join(', '); });
+    Object.entries(PF_CHECK_FIELDS).forEach(([id,col])=>{ $('#'+id).checked = data[col] === true; });
+    $('#pfAutofillSoft').checked = data.agent_can_autofill_soft !== false;
   } else {
     $('#pfEmail').value = currentUser.email;
   }
 }
 
 async function saveProfile(){
-  const btn=$('#pfSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  // Two buttons on this view ("Save and apply" and "Save additional
+  // details") both call this — it's one upsert either way, so both get the
+  // same disabled/"Saving…" treatment rather than tracking which was clicked.
+  const btn=$('#pfSaveBtn'), btn2=$('#pfSaveExtraBtn');
+  const btnText=btn.textContent, btn2Text=btn2.textContent;
+  btn.disabled=true; btn.textContent='Saving…';
+  btn2.disabled=true; btn2.textContent='Saving…';
   try{
     let resumeUrl = currentSeeker?.resume_url || null;
     const file = $('#pfResume').files[0];
@@ -979,8 +1070,14 @@ async function saveProfile(){
       preferred_locations: getSelectedLocs(),
       salary_min: $('#pfSalaryMin').value ? Number($('#pfSalaryMin').value) : null,
       salary_max: $('#pfSalaryMax').value ? Number($('#pfSalaryMax').value) : null,
-      resume_url: resumeUrl
+      resume_url: resumeUrl,
+      agent_can_autofill_soft: $('#pfAutofillSoft').checked
     };
+    Object.entries(PF_TEXT_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).value.trim() || null; });
+    Object.entries(PF_DATE_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).value || null; });
+    Object.entries(PF_NUMBER_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).value ? Number($('#'+id).value) : null; });
+    Object.entries(PF_LIST_FIELDS).forEach(([id,col])=>{ payload[col] = splitList($('#'+id).value); });
+    Object.entries(PF_CHECK_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).checked; });
     // application_mode/status belong to Admin, not this form — only set
     // them on the very first save (brand-new signup, currentSeeker still
     // null at this point) so a new account starts active+automatic same as
@@ -1000,7 +1097,10 @@ async function saveProfile(){
     renderDashboard();
   }catch(err){
     toast('⚠ '+err.message,'err');
-  }finally{ btn.disabled=false; btn.textContent='💾 Save and apply'; }
+  }finally{
+    btn.disabled=false; btn.textContent=btnText;
+    btn2.disabled=false; btn2.textContent=btn2Text;
+  }
 }
 
 async function deleteAccount(){
