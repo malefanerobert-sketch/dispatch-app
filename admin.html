@@ -201,10 +201,8 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
             <div class="field"><label>Source type</label>
               <select id="newSourceType">
                 <option value="jobmail">Jobmail</option>
-                <option value="jnet">Jnet</option>
-                <option value="careerjunction">CareerJunction</option>
               </select>
-              <div style="color:var(--muted);font-size:11px;margin-top:4px">Only these three have a working fetcher in the worker. A source type without one silently returns zero jobs forever — ask for a new type to be added in code before offering it here.</div>
+              <div style="color:var(--muted);font-size:11px;margin-top:4px">Jobmail is the only source type with a real, working fetcher (HTML scrape). Jnet and CareerJunction used to be offered here too, but both were investigated and found to have no usable public API (Jnet is just a Careerjet iframe with nothing of its own to scrape; CareerJunction is behind Cloudflare bot protection) — discoverAuto.js's fetchers for them always return zero jobs by design, so they were removed from this list rather than let an admin add a source that can never actually find anything. Ask for a new type to be added in code (with a real, tested fetcher) before offering it here again.</div>
             </div>
           </div>
           <div class="row2">
@@ -448,7 +446,11 @@ async function addNewJobSource(){
   // dropdown — discoverAuto.js has no fetcher for it, so adding one here
   // would silently return zero jobs forever. Only offer types with a real
   // fetcher until one is built for 'custom'.
-  const allowedTypes = ['jobmail','jnet','careerjunction'];
+  // Only jobmail has a real fetcher (see the dropdown's note above) — this
+  // mirrors that list rather than the DB's full source_type CHECK constraint,
+  // so this form can never create a source that's guaranteed to return zero
+  // jobs forever.
+  const allowedTypes = ['jobmail'];
   const safeType = allowedTypes.includes(sourceType) ? sourceType : 'jobmail';
   let baseUrl = endpoint;
   try { baseUrl = new URL(endpoint).origin; } catch { /* fall back to endpoint */ }
