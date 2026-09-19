@@ -200,9 +200,11 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
             <div class="field"><label>Source name</label><input type="text" id="newSourceName" placeholder="e.g. LinkedIn ZA"></div>
             <div class="field"><label>Source type</label>
               <select id="newSourceType">
+                <option value="custom">Custom API</option>
                 <option value="jobmail">Jobmail</option>
+                <option value="jnet">Jnet</option>
+                <option value="careerjunction">CareerJunction</option>
               </select>
-              <div style="color:var(--muted);font-size:11px;margin-top:4px">Jobmail is the only source type with a real, working fetcher (HTML scrape). Jnet and CareerJunction used to be offered here too, but both were investigated and found to have no usable public API (Jnet is just a Careerjet iframe with nothing of its own to scrape; CareerJunction is behind Cloudflare bot protection) — discoverAuto.js's fetchers for them always return zero jobs by design, so they were removed from this list rather than let an admin add a source that can never actually find anything. Ask for a new type to be added in code (with a real, tested fetcher) before offering it here again.</div>
             </div>
           </div>
           <div class="row2">
@@ -369,7 +371,7 @@ async function enterApp(){
   // gets zero rows back on this query, not an error, since the SELECT
   // policy only matches rows when auth.uid() is in dispatch_admins.
   const {data, error} = await sb.from('job_seekers').select('*').limit(1);
-  if(error || !data){
+  if(error || !data || !data.length){
     $('#mainBox').classList.add('hidden');
     $('#deniedBox').classList.remove('hidden');
     return;
@@ -432,7 +434,7 @@ async function saveTimeWindow(){
 
 async function addNewJobSource(){
   const name       = ($('#newSourceName').value || '').trim();
-  const sourceType = ($('#newSourceType').value || 'jobmail').trim();
+  const sourceType = ($('#newSourceType').value || 'custom').trim();
   const endpoint   = ($('#newSourceEndpoint').value || '').trim();
   const requiresKey= ($('#newSourceRequiresKey').value === 'true');
   const desc       = ($('#newSourceDesc').value || '').trim();
@@ -442,16 +444,8 @@ async function addNewJobSource(){
   // job_sources requires base_url (NOT NULL) and automation_risk (NOT NULL)
   // and the boolean column is api_requires_key (not requires_api_key).
   // source_type has a CHECK constraint (adzuna|remoteok|jobmail|jnet|careerjunction|custom).
-  // 'custom' is still a valid DB value but deliberately not offered in this
-  // dropdown — discoverAuto.js has no fetcher for it, so adding one here
-  // would silently return zero jobs forever. Only offer types with a real
-  // fetcher until one is built for 'custom'.
-  // Only jobmail has a real fetcher (see the dropdown's note above) — this
-  // mirrors that list rather than the DB's full source_type CHECK constraint,
-  // so this form can never create a source that's guaranteed to return zero
-  // jobs forever.
-  const allowedTypes = ['jobmail'];
-  const safeType = allowedTypes.includes(sourceType) ? sourceType : 'jobmail';
+  const allowedTypes = ['adzuna','remoteok','jobmail','jnet','careerjunction','custom'];
+  const safeType = allowedTypes.includes(sourceType) ? sourceType : 'custom';
   let baseUrl = endpoint;
   try { baseUrl = new URL(endpoint).origin; } catch { /* fall back to endpoint */ }
 
@@ -481,7 +475,7 @@ async function addNewJobSource(){
 
   btn.disabled = false; btn.textContent = '➕ Add source';
   $('#newSourceName').value = '';
-  $('#newSourceType').value = 'jobmail';
+  $('#newSourceType').value = 'custom';
   $('#newSourceEndpoint').value = '';
   $('#newSourceRequiresKey').value = 'false';
   $('#newSourceDesc').value = '';
@@ -561,7 +555,7 @@ function renderAccounts(){
       '<div class="grow"><b>'+esc(a.full_name||'(no name)')+'</b><div class="sub">'+esc(a.dedicated_email||'')+'</div></div>'+
       '<span class="pill '+(isPaused?'gray':'green')+'">'+(isPaused?'paused':'active')+'</span>'+
       '<span class="pill '+(a.application_mode==='automatic'?'amber':'gray')+'">'+esc(a.application_mode||'approval')+'</span>'+
-      '<span class="pill '+(apiProvider==='user'?'amber':(apiProvider==='none'?'gray':'gray'))+'">'+esc(apiProvider==='user'?'User API':(apiProvider==='none'?'No AI':'Company API'))+'</span>'+
+      '<span class="pill '+(apiProvider==='user'?'amber':'gray')+'">'+esc(apiProvider==='user'?'User API':'Company API')+'</span>'+
       '<span class="pill '+(discoveryMode==='auto'?'amber':discoveryMode==='both'?'green':'gray')+'">'+esc(discoveryMode==='auto'?'Auto':(discoveryMode==='both'?'Manual+Auto':'Manual'))+'</span>'+
       '<span style="color:var(--muted);font-size:12px">Titles: '+esc((a.job_title_keywords||[]).join(', ')||'—')+'</span>'+
       '<button class="btn btn-sm" data-toggle-details="'+a.id+'">⚙ Settings</button>'+
@@ -571,24 +565,17 @@ function renderAccounts(){
         '<h4 style="margin-bottom:14px;font-size:13px;font-weight:700;text-transform:uppercase;color:var(--accent)">API &amp; Discovery Settings</h4>'+
         '<div class="row2">'+
           '<div class="field">'+
-            '<label>AI Key</label>'+
-            '<select data-api-provider="'+a.id+'"><option value="company">Company API (shared AI key)</option><option value="user">User\'s Own API Key</option><option value="none">No AI — skip entirely (never use company key)</option></select>'+
+            '<label>API Provider</label>'+
+            '<select data-api-provider="'+a.id+'"><option value="company">Company API (JobAgent Adzuna)</option><option value="user">User\'s Own API Key</option></select>'+
           '</div>'+
           '<div class="field">'+
             '<label>Discovery Mode</label>'+
             '<select data-discovery-mode="'+a.id+'"><option value="manual">Manual (watched pages only)</option><option value="auto">Automatic (job board search only)</option><option value="both">Both manual + automatic</option></select>'+
           '</div>'+
         '</div>'+
-        '<div class="row2" id="userKeyField-'+a.id+'" style="display:none">'+
-          '<div class="field">'+
-            '<label>Their AI provider</label>'+
-            '<select data-user-ai-provider="'+a.id+'"><option value="anthropic">Anthropic (Claude)</option><option value="openai">OpenAI</option></select>'+
-          '</div>'+
-          '<div class="field">'+
-            '<label>Their API key</label>'+
-            '<input type="password" data-user-api-key="'+a.id+'" placeholder="sk-ant-… or sk-…">'+
-            '<div id="userKeyStatus-'+a.id+'" style="font-size:11px;margin-top:3px"></div>'+
-          '</div>'+
+        '<div class="field" id="userKeyField-'+a.id+'" style="display:none">'+
+          '<label>User API Key (paste their key)</label>'+
+          '<input type="password" data-user-api-key="'+a.id+'" placeholder="sk-… or their provider key">'+
         '</div>'+
         '<div class="field">'+
           '<label><input type="checkbox" data-remote-only="'+a.id+'" style="width:auto;margin-right:6px"> Remote jobs only</label>'+
@@ -630,21 +617,16 @@ function renderAccounts(){
       const src = jobSources.find(s=>s.id===ujs.job_source_id);
       if(!src) return '';
       return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border-radius:8px;border:1px solid var(--line)">
-        <input type="checkbox" data-user-id="${userId}" data-source-row-id="${ujs.id}" ${ujs.enabled?'checked':''} style="width:auto;accent-color:var(--accent)">
+        <input type="checkbox" data-user-source="${userId}-${ujs.id}" ${ujs.enabled?'checked':''} style="width:auto;accent-color:var(--accent)">
         <span style="flex:1">${esc(src.name)}</span>
         <span class="pill ${src.country_filter==='ZA'?'green':'gray'}">${esc(src.country_filter)}</span>
       </div>`;
     }).join('');
 
-    // Add event listeners for source toggles. Two separate data-*
-    // attributes, not one joined string — job_seekers.id and
-    // user_job_sources.id are both UUIDs, and UUIDs contain hyphens
-    // themselves, so joining them with a hyphen and splitting back apart
-    // (the old approach) silently corrupted both ids and made the toggle a
-    // no-op with no error shown. Reading them separately can't have that bug.
-    container.querySelectorAll('[data-source-row-id]').forEach(chk=>{
+    // Add event listeners for source toggles
+    container.querySelectorAll('[data-user-source]').forEach(chk=>{
       chk.addEventListener('change', async ()=>{
-        const ujsId = chk.dataset.sourceRowId;
+        const [userId, ujsId] = chk.dataset.userSource.split('-');
         const ujs = userJobSources.find(u=>u.id===ujsId);
         if(!ujs) return;
         const src = jobSources.find(s=>s.id===ujs.job_source_id);
@@ -668,12 +650,12 @@ function renderAccounts(){
     sel.addEventListener('change', ()=>{
       const id=sel.dataset.apiProvider;
       const userKeyField=$('#userKeyField-'+id);
-      if(sel.value==='user'){ userKeyField.style.display='flex'; }
+      if(sel.value==='user'){ userKeyField.style.display='block'; }
       else { userKeyField.style.display='none'; }
     });
     // Set initial state
     sel.value = accounts.find(a=>a.id===sel.dataset.apiProvider)?.api_provider || 'company';
-    if(sel.value==='user'){ $(`#userKeyField-${sel.dataset.apiProvider}`).style.display='flex'; }
+    if(sel.value==='user'){ $(`#userKeyField-${sel.dataset.apiProvider}`).style.display='block'; }
   });
 
   el.querySelectorAll('[data-discovery-mode]').forEach(sel=>{
@@ -681,19 +663,10 @@ function renderAccounts(){
     sel.value = accounts.find(a=>a.id===id)?.discovery_mode || 'manual';
   });
 
-  // Their AI provider + key — these two columns (ai_provider/ai_api_key) are
-  // what the worker actually reads for a per-seeker override; the old
-  // api_key column is never read by anything and is no longer written here.
-  el.querySelectorAll('[data-user-ai-provider]').forEach(sel=>{
-    const id=sel.dataset.userAiProvider;
-    const acct=accounts.find(a=>a.id===id);
-    sel.value = (acct?.ai_provider && acct.ai_provider !== 'none') ? acct.ai_provider : 'anthropic';
-  });
-
   el.querySelectorAll('[data-user-api-key]').forEach(inp=>{
     const id=inp.dataset.userApiKey;
     const acct=accounts.find(a=>a.id===id);
-    if(acct?.ai_api_key){ inp.value=acct.ai_api_key; }
+    if(acct?.api_key){ inp.value=acct.api_key; }
   });
 
   el.querySelectorAll('[data-remote-only]').forEach(chk=>{
@@ -702,75 +675,19 @@ function renderAccounts(){
     chk.checked = acct?.remote_only === true;
   });
 
-  // Best-effort live check that a pasted key actually works, before saving
-  // it. This can't be airtight from a static admin page — a browser-side
-  // call to Anthropic/OpenAI may be blocked by that provider's CORS policy
-  // in some browsers — so a validation call that fails to even complete
-  // (network/CORS error) does NOT block the save; only a call that actually
-  // completes and comes back rejected (bad key) does. Either way the key
-  // gets its real test the moment the worker uses it.
-  async function testUserApiKey(provider, apiKey){
-    try{
-      if(provider === 'anthropic'){
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method:'POST',
-          headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-          body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:1, messages:[{role:'user',content:'hi'}]})
-        });
-        if(res.status===401||res.status===403) return {checked:true, ok:false, message:'Key rejected by Anthropic (401/403) — double-check it.'};
-        return {checked:true, ok:true};
-      } else if(provider === 'openai'){
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-          body: JSON.stringify({model:'gpt-4o-mini', max_tokens:1, messages:[{role:'user',content:'hi'}]})
-        });
-        if(res.status===401||res.status===403) return {checked:true, ok:false, message:'Key rejected by OpenAI (401/403) — double-check it.'};
-        return {checked:true, ok:true};
-      }
-      return {checked:false};
-    }catch(err){
-      // Network/CORS failure — couldn't validate from here, not proof the key is bad.
-      return {checked:false, message:'Could not validate from this browser ('+err.message+') — saved anyway; it will get a real test on first use.'};
-    }
-  }
-
   el.querySelectorAll('[data-save-api]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id=btn.dataset.saveApi;
       const apiProvider = $(`[data-api-provider="${id}"]`).value;
       const discoveryMode = $(`[data-discovery-mode="${id}"]`).value;
-      const userAiProvider = $(`[data-user-ai-provider="${id}"]`).value;
       const userApiKey = $(`[data-user-api-key="${id}"]`).value.trim() || null;
       const remoteOnly = $(`[data-remote-only="${id}"]`).checked;
-      const statusEl = $(`#userKeyStatus-${id}`);
-      if(statusEl) statusEl.textContent = '';
-
-      if(apiProvider === 'user' && !userApiKey){
-        toast('⚠ Paste their API key, or switch back to Company API','err');
-        return;
-      }
 
       btn.disabled=true;
       btn.textContent='Saving…';
-
-      if(apiProvider === 'user' && userApiKey){
-        btn.textContent='Checking key…';
-        const check = await testUserApiKey(userAiProvider, userApiKey);
-        if(check.checked && !check.ok){
-          btn.disabled=false; btn.textContent='💾 Save API Settings';
-          if(statusEl){ statusEl.style.color='#f87171'; statusEl.textContent='⚠ '+check.message; }
-          toast('⚠ '+check.message+' Not saved.','err');
-          return;
-        }
-        if(!check.checked && check.message && statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='ℹ '+check.message; }
-        btn.textContent='Saving…';
-      }
-
       const {error} = await sb.from('job_seekers').update({
         api_provider: apiProvider,
-        ai_provider: apiProvider==='user' ? userAiProvider : 'none',
-        ai_api_key: apiProvider==='user' ? userApiKey : null,
+        api_key: apiProvider==='user' ? userApiKey : null,
         discovery_mode: discoveryMode,
         remote_only: remoteOnly,
         updated_at: new Date().toISOString()
@@ -782,13 +699,11 @@ function renderAccounts(){
       const acct=accounts.find(a=>a.id===id);
       if(acct){
         acct.api_provider=apiProvider;
-        acct.ai_provider=apiProvider==='user' ? userAiProvider : 'none';
-        acct.ai_api_key=apiProvider==='user' ? userApiKey : null;
+        acct.api_key=userApiKey;
         acct.discovery_mode=discoveryMode;
         acct.remote_only=remoteOnly;
       }
-      if(statusEl && apiProvider==='user' && !statusEl.textContent){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Key verified'; }
-      toast('API settings saved ✓ — the worker will use their own key on its next run','ok');
+      toast('API settings saved ✓','ok');
       renderAccounts();
     });
   });
