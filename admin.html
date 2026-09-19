@@ -726,13 +726,49 @@ function renderAccounts(){
     btn.addEventListener('click', async ()=>{
       const id=btn.dataset.deleteAcct;
       const acct=accounts.find(a=>a.id===id);
-      const ok = confirm("Delete "+(acct.full_name||"this account")+"? This permanently removes their profile, resume, matches, applications, documents, and watched pages. Their login itself is not removed (that needs the same self-service delete flow they'd use themselves). This can't be undone.");
+      const ok = confirm("Delete "+(acct.full_name||"this account")+"? This permanently removes their profile, resume, matches, applications, documents, and watched pages, AND fully removes their login (Supabase Auth account) so they can no longer sign in. This can't be undone.");
       if(!ok) return;
       btn.disabled=true;
       const {error} = await sb.from('job_seekers').delete().eq('id', id);
       if(error){ toast('⚠ '+error.message,'err'); btn.disabled=false; return; }
+
+      // Also remove the actual Supabase Auth login via the admin-delete-user
+      // edge function (deleting an auth user requires the service role key,
+      // which must never live in the browser). Pass the auth user id (user_id)
+      // and the current session's access token as Bearer auth.
+      const authUserId = acct.user_id;
+      if(authUserId){
+        try{
+          const {data:sess} = await sb.auth.getSession();
+          const accessToken = sess && sess.session ? sess.session.access_token : null;
+          if(!accessToken){
+            toast('⚠ Profile deleted, but could not remove login: no session token','err');
+          } else {
+            const resp = await fetch(SUPABASE_URL+'/functions/v1/admin-delete-user', {
+              method:'POST',
+              headers:{
+                'Content-Type':'application/json',
+                'Authorization':'Bearer '+accessToken,
+                'apikey':SUPABASE_ANON_KEY
+              },
+              body:JSON.stringify({ userId: authUserId })
+            });
+            let result={};
+            try{ result = await resp.json(); }catch(_){}
+            if(!resp.ok || !result.success){
+              toast('⚠ Profile deleted, but login removal failed: '+(result.error||('HTTP '+resp.status)),'err');
+            } else {
+              toast('Account and login fully deleted','ok');
+            }
+          }
+        }catch(e){
+          toast('⚠ Profile deleted, but login removal failed: '+(e.message||e),'err');
+        }
+      } else {
+        toast('Account deleted (no linked login found to remove)','ok');
+      }
+
       accounts = accounts.filter(a=>a.id!==id);
-      toast('Account deleted','ok');
       renderAccounts();
     });
   });
