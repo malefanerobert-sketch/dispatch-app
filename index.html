@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
+  color-scheme:dark;   /* keeps native controls (calendar picker, dropdown chevrons, spinners) light-on-dark */
   --bg:#0a0f1e; --panel:#111a33; --panel2:#0d1428; --line:#23305a;
   --text:#e9edf9; --muted:#8b96b8; --accent:#ffb454; --accent2:#4fd1c5;
   --accent-rgb:255,180,84; --accent2-rgb:79,209,197; --accent-tint:#ffd9a3;
@@ -70,6 +71,31 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 textarea{min-height:96px;resize:vertical}
 input[type=file]{padding:8px}
 input[type=radio]{width:auto}
+/* Force the browser calendar / clock picker icons to render white.
+   We paint our own white SVG icon and hide Chrome's default indicator so that
+   :root's color-scheme:dark doesn't fight us. */
+input[type=date],input[type=datetime-local],input[type=time],input[type=month],input[type=week],input[type=number]{color-scheme:dark}
+input[type=date]::-webkit-datetime-edit,input[type=datetime-local]::-webkit-datetime-edit,
+input[type=time]::-webkit-datetime-edit,input[type=month]::-webkit-datetime-edit{color:var(--text)}
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=datetime-local]::-webkit-calendar-picker-indicator,
+input[type=month]::-webkit-calendar-picker-indicator,
+input[type=week]::-webkit-calendar-picker-indicator{
+  /* replace Chrome's tinted icon with a plain white one */
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>");
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:18px 18px;
+  color:transparent;                 /* wipe out the built-in glyph */
+  width:22px;height:22px;padding:0;margin-right:2px;
+  opacity:1;filter:none;cursor:pointer;
+}
+input[type=time]::-webkit-calendar-picker-indicator{
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>");
+  background-repeat:no-repeat;background-position:center;background-size:18px 18px;
+  color:transparent;width:22px;height:22px;padding:0;margin-right:2px;
+  opacity:1;filter:none;cursor:pointer;
+}
 select{cursor:pointer}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 
@@ -430,6 +456,14 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
       </nav>
       <div class="side-foot">
         <div class="agent-pill"><span class="dot idle" id="agentDot"></span><span id="agentText">waking up…</span></div>
+        <div class="theme-picker-wrap">
+          <button id="themeToggleBtn" class="theme-toggle-btn" onclick="(function(){const m=document.getElementById('themeMenu');if(m.classList.contains('hidden')){renderThemeMenu();}else{m.classList.add('hidden');}})()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 0 14"/></svg>
+            Theme
+            <span id="themeCurrentSwatch" class="theme-swatch" style="background:linear-gradient(135deg,#c084fc,#ff7ab8);margin-left:auto"></span>
+          </button>
+          <div id="themeMenu" class="theme-menu hidden"></div>
+        </div>
         <button class="btn btn-ghost btn-sm btn-block" onclick="signOut()">Sign out</button>
       </div>
     </aside>
@@ -437,9 +471,7 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
     <main>
       <div class="topbar">
         <div><h2 id="viewTitle">Dashboard</h2><div class="sub" id="viewSub"></div></div>
-        <div class="topbar-right">
-          <span class="lastscan" id="lastScan"></span>
-        </div>
+        <div class="topbar-right"></div>
       </div>
 
       <!-- DASHBOARD -->
@@ -449,14 +481,14 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
           <button class="btn btn-primary btn-sm" onclick="setView('profile')">Open profile</button>
         </div>
         <div class="stats">
-          <div class="stat" style="cursor:pointer" onclick="setView('matches')" title="View matched jobs"><div class="num" id="stNew">0</div><div class="lbl">Jobs applied</div></div>
+          <div class="stat" style="cursor:pointer" onclick="setView('matches')" title="View matched jobs"><div class="num" id="stNew">0</div><div class="lbl">Matches found</div></div>
           <div class="stat teal" style="cursor:pointer" onclick="setView('applications')" title="View application report"><div class="num" id="stApps">0</div><div class="lbl">Needs your input</div></div>
           <div class="stat red" style="cursor:pointer" onclick="setView('blocked')" title="View block list"><div class="num" id="stBlocked">0</div><div class="lbl">Blocked filters</div></div>
           <div class="stat green" style="cursor:pointer" onclick="setView('watch')" title="View watched pages"><div class="num" id="stWatch">0</div><div class="lbl">Watched pages</div></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <h3>🤖 Your agent</h3>
+            <h3>📡 Your agent</h3>
             <p class="section-note" id="agentSummary">Set up your profile to activate the agent.</p>
             <button class="btn btn-primary btn-sm" onclick="refreshAll()">🔄 Refresh now</button>
           </div>
@@ -550,15 +582,90 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
 
       <!-- PROFILE -->
       <section id="view-profile" class="hidden">
-        <div class="card" style="margin-bottom:18px">
-          <h3>Your job search profile</h3>
+        <!-- Notice at the top of the form — same recipe as the ⚙ Profile nav-active state:
+             #0c1226 base + rgba(192,132,252,.16) gradient overlay, #c084fc left bar.
+             Text stays white for readability. -->
+        <div style="margin-bottom:14px;border-radius:10px;padding:14px 16px;
+                    background:linear-gradient(90deg,rgba(192,132,252,.16),transparent), #0c1226;
+                    box-shadow:inset 4px 0 0 #c084fc">
+          <p style="font-size:13.5px;line-height:1.55;color:#ffffff;margin:0">
+            <b>Note:</b> some of the information required may not be compulsory but can be
+            necessary for your CV submission, include them if available. Form may not save if they're not filled.
+          </p>
+        </div>
+
+        <!-- ============= 1. PERSONAL (REQUIRED) ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">1&nbsp;· Personal details <span style="color:var(--accent);font-size:12px">* required</span></h3>
           <div class="row2">
-            <div class="field"><label>Full name</label><input id="pfName"></div>
-            <div class="field"><label>Dedicated application email</label><input id="pfEmail" placeholder="yourname.jobs@gmail.com"></div>
+            <div class="field"><label>Full name <span style="color:var(--accent)">*</span></label><input id="pfName"></div>
+            <div class="field"><label>Date of birth <span style="color:var(--accent)">*</span></label><input type="date" id="pfDob"></div>
           </div>
-          <div class="field"><label>Phone</label><input id="pfPhone"></div>
-          <div class="field"><label>Job titles / keywords (comma separated)</label>
-            <input id="pfTitles" placeholder="e.g. Data Analyst, Operations Manager, Remote admin"></div>
+          <div class="row2">
+            <div class="field"><label>Gender <span style="color:var(--accent)">*</span></label>
+              <select id="pfGender"><option value="">— Select —</option><option>Male</option><option>Female</option><option>Non-binary</option></select>
+            </div>
+            <div class="field"><label>Race (Employment Equity)</label>
+              <select id="pfRace"><option value="">— Optional —</option><option>African</option><option>Coloured</option><option>Indian</option><option>White</option></select>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>ID type <span style="color:var(--accent)">*</span></label>
+              <select id="pfIdType"><option value="">— Select —</option><option value="sa_id">South African ID</option><option value="passport">Passport</option></select>
+            </div>
+            <div class="field"><label>ID / passport number <span style="color:var(--accent)">*</span></label><input id="pfIdNumber"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nationality <span style="color:var(--accent)">*</span></label><input id="pfNationality"></div>
+            <div class="field"><label>Primary phone <span style="color:var(--accent)">*</span></label><input id="pfPhone"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Alternative phone</label><input id="pfPhoneAlt"></div>
+            <div class="field"><label>Application email</label><input id="pfEmail"></div>
+          </div>
+        </div>
+
+        <!-- ============= 2. ADDRESS ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">2&nbsp;· Address</h3>
+          <div class="field"><label>Street address</label><input id="pfAddress" placeholder="Street, suburb"></div>
+          <div class="row2">
+            <div class="field"><label>City</label><input id="pfCity" placeholder="e.g. Johannesburg"></div>
+            <div class="field"><label>Province</label>
+              <select id="pfProvince"><option value="">— Select —</option>
+                <option>Gauteng</option><option>Western Cape</option><option>KwaZulu-Natal</option><option>Eastern Cape</option>
+                <option>Free State</option><option>Limpopo</option><option>Mpumalanga</option><option>North West</option><option>Northern Cape</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>Postal code</label><input id="pfPostal" placeholder="e.g. 2000" style="max-width:220px"></div>
+        </div>
+
+        <!-- ============= 3. RIGHT TO WORK & AVAILABILITY ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">3&nbsp;· Availability &amp; logistics</h3>
+          <div class="row2">
+            <div class="field"><label>Notice period (days)</label><input type="number" id="pfNoticeDays" min="0" placeholder="e.g. 30"></div>
+            <div class="field"><label>Available from</label><input type="date" id="pfAvailableFrom"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Own transport?</label>
+              <select id="pfOwnTransport"><option value="">— Select —</option><option value="true">Yes</option><option value="false">No</option></select>
+            </div>
+            <div class="field"><label>Willing to relocate?</label>
+              <select id="pfWillRelocate"><option value="">— Select —</option><option value="true">Yes</option><option value="false">No</option></select>
+            </div>
+          </div>
+          <div class="field"><label>Driver's licence codes</label>
+            <input id="pfLicense" placeholder="e.g. code 10">
+          </div>
+        </div>
+
+        <!-- ============= 4. JOB-SEARCH PREFERENCES ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">4&nbsp;· What you're looking for</h3>
+          <div class="field"><label>Job titles / keywords</label>
+            <input id="pfTitles" placeholder="e.g. Data Capturer, Data Entry, Administrator"></div>
           <div class="row2">
             <div class="field loc-multiselect">
               <label>Preferred locations</label>
@@ -572,82 +679,113 @@ main{padding:26px 30px 60px;max-width:1200px;width:100%}
                 <div id="pfLocsList"></div>
               </div>
             </div>
-            <div class="field"><label>Salary range (optional)</label>
+            <div class="field"><label>Salary range</label>
               <div style="display:flex;gap:8px"><input type="number" id="pfSalaryMin" placeholder="Min"><input type="number" id="pfSalaryMax" placeholder="Max"></div>
             </div>
           </div>
-          <div class="field"><label>Upload CV (compulsory — the agent can't apply without it)</label>
-            <input type="file" id="pfResume" accept=".pdf,.doc,.docx"><div class="hint" id="pfResumeName"></div></div>
-          <button class="btn btn-primary" id="pfSaveBtn" onclick="saveProfile()">💾 Save and apply</button>
         </div>
-        <div class="card" style="margin-bottom:18px">
-          <h3>Additional details</h3>
-          <p class="hint" style="margin-bottom:14px">Optional, but many South African application forms ask for these directly — ID number, address, current role, qualifications. Anything you leave blank here is simply left blank on a form that asks for it; your agent never guesses or invents an answer to a hard question like these.</p>
 
+        <!-- ============= 5. WORK EXPERIENCE ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">5&nbsp;· Work experience</h3>
           <div class="row2">
-            <div class="field"><label>Date of birth</label><input type="date" id="pfDob"></div>
-            <div class="field"><label>Alternate phone</label><input id="pfPhoneAlt"></div>
+            <div class="field"><label>Current / most recent employer</label><input id="pfCurEmployer" placeholder="Company name"></div>
+            <div class="field"><label>Current / most recent position</label><input id="pfCurPosition" placeholder="Job title"></div>
           </div>
           <div class="row2">
-            <div class="field"><label>Gender</label>
-              <select id="pfGender"><option value="">Prefer not to say</option><option value="Male">Male</option><option value="Female">Female</option><option value="Non-binary">Non-binary</option><option value="Other">Other</option></select></div>
-            <div class="field"><label>Race (EE reporting, as often required on SA applications)</label>
-              <select id="pfRace"><option value="">Prefer not to say</option><option value="African">African</option><option value="Coloured">Coloured</option><option value="Indian">Indian</option><option value="White">White</option><option value="Other">Other</option></select></div>
+            <div class="field"><label>Total years of experience</label><input type="number" id="pfYearsExp" min="0" placeholder="e.g. 5"></div>
+            <div class="field"><label>Highest qualification</label>
+              <select id="pfHighestQual"><option value="">— Select —</option>
+                <option>Matric / Grade 12</option><option>Certificate</option><option>Diploma</option>
+                <option>Higher Certificate</option><option>Advanced Certificate</option>
+                <option>Bachelor's Degree</option><option>Honours Degree</option><option>Master's Degree</option><option>Doctorate</option>
+                <option>Other</option>
+              </select>
+            </div>
           </div>
-          <div class="row2">
-            <div class="field"><label>Nationality</label><input id="pfNationality" placeholder="e.g. South African"></div>
-            <div class="field"><label>ID type</label>
-              <select id="pfIdType"><option value="">Select…</option><option value="SA ID">South African ID</option><option value="Passport">Passport</option><option value="Work Permit">Work Permit</option><option value="Other">Other</option></select></div>
-          </div>
-          <div class="field"><label>ID / passport number</label><input id="pfIdNumber"></div>
-          <div class="field"><label>Physical address</label><input id="pfAddress" placeholder="Street address"></div>
-          <div class="row2">
-            <div class="field"><label>City</label><input id="pfCity"></div>
-            <div class="field"><label>Province</label>
-              <select id="pfProvince"><option value="">Select…</option><option>Eastern Cape</option><option>Free State</option><option>Gauteng</option><option>KwaZulu-Natal</option><option>Limpopo</option><option>Mpumalanga</option><option>North West</option><option>Northern Cape</option><option>Western Cape</option></select></div>
-          </div>
-          <div class="field"><label>Postal code</label><input id="pfPostalCode"></div>
+          <div class="field"><label>Field of study</label><input id="pfFieldOfStudy" placeholder="e.g. Business Administration"></div>
 
-          <div class="row2">
-            <div class="field"><label>Current employer</label><input id="pfEmployer"></div>
-            <div class="field"><label>Current position</label><input id="pfPosition"></div>
-          </div>
-          <div class="row2">
-            <div class="field"><label>Years of experience</label><input type="number" id="pfYearsExp" min="0"></div>
-            <div class="field"><label>Highest qualification</label><input id="pfQualification" placeholder="e.g. BCom Honours"></div>
-          </div>
-          <div class="field"><label>Field of study</label><input id="pfFieldOfStudy"></div>
-          <div class="field"><label>Skills (comma separated)</label><input id="pfSkills" placeholder="e.g. Excel, SQL, Project management"></div>
-          <div class="row2">
-            <div class="field"><label>Languages (comma separated)</label><input id="pfLanguages" placeholder="e.g. English, Zulu, Afrikaans"></div>
-            <div class="field"><label>Driver's licence (comma separated)</label><input id="pfDriversLicense" placeholder="e.g. Code 8, Code 10"></div>
-          </div>
-          <div class="row2">
-            <div class="field"><label style="display:block"><input type="checkbox" id="pfOwnTransport" style="width:auto"> Own transport</label></div>
-            <div class="field"><label style="display:block"><input type="checkbox" id="pfRelocate" style="width:auto"> Willing to relocate</label></div>
-          </div>
-          <div class="row2">
-            <div class="field"><label>Notice period (days)</label><input type="number" id="pfNoticeDays" min="0"></div>
-            <div class="field"><label>Available from</label><input type="date" id="pfAvailableFrom"></div>
-          </div>
-          <div class="field"><label>Short bio</label><textarea id="pfBio" rows="3" placeholder="A couple of sentences about you — used verbatim for 'tell us about yourself' style questions"></textarea></div>
-          <div class="field"><label>Hobbies / interests</label><input id="pfHobbies"></div>
-          <div class="row2">
-            <div class="field"><label style="display:block"><input type="checkbox" id="pfPressureOk" style="width:auto"> Comfortable working under pressure</label></div>
-            <div class="field"><label style="display:block"><input type="checkbox" id="pfTeamPlayer" style="width:auto"> Team player</label></div>
-          </div>
-          <div class="field"><label style="display:block"><input type="checkbox" id="pfAutofillSoft" style="width:auto" checked> Let my agent compose short answers to open-ended questions (e.g. "why this role?") from the details above, when the exact answer isn't here</label></div>
-          <button class="btn btn-primary" id="pfSaveExtraBtn" onclick="saveProfile()">💾 Save additional details</button>
-        </div>
-        <div class="card">
-          <h3 style="color:#ff8f8f">Danger zone</h3>
-          <div class="danger-box">
-            <p style="font-size:13.5px;color:#ffb0b0;margin-bottom:12px">This permanently deletes your profile, CV, matches,
-            application history, and stops your agent. This can't be undone.</p>
-            <button class="btn btn-danger btn-sm" id="delAcctBtn" onclick="deleteAccount()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>Delete my account</button>
+          <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--line)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <label style="margin:0">Employment history</label>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="addEmpRow()">+ Add job</button>
+            </div>
+            <div id="pfEmpList" style="display:grid;gap:12px"></div>
           </div>
         </div>
+
+        <!-- ============= 6. EDUCATION ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">6&nbsp;· Education</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div class="hint" style="color:var(--muted);font-size:12px">Add each qualification separately</div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addEduRow()">+ Add qualification</button>
+          </div>
+          <div id="pfEduList" style="display:grid;gap:12px"></div>
+        </div>
+
+        <!-- ============= 7. SKILLS & LANGUAGES ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">7&nbsp;· Skills &amp; languages</h3>
+          <div class="field"><label>Skills (comma-separated)</label>
+            <input id="pfSkills" placeholder="e.g. Microsoft Excel, Data Entry, SAP, Sage Pastel">
+          </div>
+          <div class="field"><label>Languages (comma-separated)</label>
+            <input id="pfLanguages" placeholder="e.g. English, Zulu, Afrikaans">
+          </div>
+        </div>
+
+        <!-- ============= 8. ABOUT YOU ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">8&nbsp;· About you</h3>
+          <div class="field"><label>Short bio &nbsp;<span style="color:var(--muted);font-size:11px">"Tell us about yourself"</span></label>
+            <textarea id="pfBio" rows="4" placeholder="A few sentences about your background and what you're looking for."></textarea>
+          </div>
+          <div class="field"><label>Hobbies &amp; interests</label>
+            <input id="pfHobbies" placeholder="e.g. reading, running, community volunteering">
+          </div>
+          <div class="row2">
+            <div class="field"><label>Can you cope with pressure?</label>
+              <select id="pfPressure"><option value="">— Select —</option><option value="true">Yes</option><option value="false">No</option></select>
+            </div>
+            <div class="field"><label>Do you work well in a team?</label>
+              <select id="pfTeam"><option value="">— Select —</option><option value="true">Yes</option><option value="false">No</option></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============= 9. REFERENCES ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">9&nbsp;· References</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div class="hint" style="color:var(--muted);font-size:12px">Usually 2-3 professional references</div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addRefRow()">+ Add reference</button>
+          </div>
+          <div id="pfRefList" style="display:grid;gap:12px"></div>
+        </div>
+
+        <!-- ============= 10. CV UPLOAD (OPTIONAL) ============= -->
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="margin-bottom:12px">10&nbsp;· CV upload <span class="pill gray" style="font-size:10px">optional</span></h3>
+          <input type="file" id="pfResume" accept=".pdf,.doc,.docx">
+          <div class="hint" id="pfResumeName"></div>
+        </div>
+
+        <!-- ============= SAVE ============= -->
+        <div class="card" style="margin-bottom:14px;text-align:center">
+          <button class="btn btn-primary" id="pfSaveBtn" onclick="saveProfile()" style="min-width:220px;padding:12px 24px;font-size:15px">💾 Save profile</button>
+          <div class="hint" id="pfSaveStatus" style="color:var(--muted);font-size:12.5px;margin-top:10px"></div>
+        </div>
+
       </section>
+
+      <!-- Floating "back to top" button — only visible on the profile page -->
+      <button id="pfTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+              style="position:fixed;right:22px;bottom:22px;display:none;z-index:60;
+                     background:linear-gradient(135deg,var(--btn-a),var(--btn-b));color:var(--btn-text);
+                     border:none;border-radius:50%;width:48px;height:48px;font-size:20px;font-weight:800;
+                     cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)"
+              title="Back to top">↑</button>
     </main>
   </div>
 
@@ -740,7 +878,27 @@ const THEMES={
     text:'#e9edf9', muted:'#8b96b8', cardBg:'linear-gradient(180deg,#121b38,#0f1730)', sidebarBg:'#0c1226', inputBg:'#0d1428',
     accent:'#c084fc', accentRgb:'192,132,252', accent2:'#ff7ab8', accent2Rgb:'255,122,184',
     tint:'#ddb8fe', btnA:'#ffb454', btnB:'#ff8e3c', btnText:'#221302',
-    btnShadow:'rgba(255,150,60,.25)', btnShadowHover:'rgba(255,150,60,.4)'}
+    btnShadow:'rgba(255,150,60,.25)', btnShadowHover:'rgba(255,150,60,.4)'},
+  nebula:{label:'Nebula', bg:'#0a0f1e', panel:'#111a33', panel2:'#0d1428', line:'#23305a',
+    text:'#e9edf9', muted:'#8b96b8', cardBg:'linear-gradient(180deg,#121b38,#0f1730)', sidebarBg:'#0c1226', inputBg:'#0d1428',
+    accent:'#ffb454', accentRgb:'255,180,84', accent2:'#4fd1c5', accent2Rgb:'79,209,197',
+    tint:'#ffd09a', btnA:'#ffb454', btnB:'#ff8e3c', btnText:'#221302',
+    btnShadow:'rgba(255,150,60,.25)', btnShadowHover:'rgba(255,150,60,.4)'},
+  signal:{label:'Signal', bg:'#0a0f1e', panel:'#111a33', panel2:'#0d1428', line:'#23305a',
+    text:'#e9edf9', muted:'#8b96b8', cardBg:'linear-gradient(180deg,#121b38,#0f1730)', sidebarBg:'#0c1226', inputBg:'#0d1428',
+    accent:'#4f9dff', accentRgb:'79,157,255', accent2:'#a3e635', accent2Rgb:'163,230,53',
+    tint:'#a8c8ff', btnA:'#4f9dff', btnB:'#2f7de0', btnText:'#071a33',
+    btnShadow:'rgba(79,157,255,.25)', btnShadowHover:'rgba(79,157,255,.4)'},
+  aurora:{label:'Aurora', bg:'#0a0f1e', panel:'#111a33', panel2:'#0d1428', line:'#23305a',
+    text:'#e9edf9', muted:'#8b96b8', cardBg:'linear-gradient(180deg,#121b38,#0f1730)', sidebarBg:'#0c1226', inputBg:'#0d1428',
+    accent:'#2dd4a7', accentRgb:'45,212,167', accent2:'#38bdf8', accent2Rgb:'56,189,248',
+    tint:'#99f0da', btnA:'#2dd4a7', btnB:'#14b892', btnText:'#052e24',
+    btnShadow:'rgba(45,212,167,.25)', btnShadowHover:'rgba(45,212,167,.4)'},
+  solstice:{label:'Solstice', bg:'#0a0f1e', panel:'#111a33', panel2:'#0d1428', line:'#23305a',
+    text:'#e9edf9', muted:'#8b96b8', cardBg:'linear-gradient(180deg,#121b38,#0f1730)', sidebarBg:'#0c1226', inputBg:'#0d1428',
+    accent:'#ffd166', accentRgb:'255,209,102', accent2:'#ff8f70', accent2Rgb:'255,143,112',
+    tint:'#ffe8a0', btnA:'#ffd166', btnB:'#ffab40', btnText:'#2e1900',
+    btnShadow:'rgba(255,209,102,.25)', btnShadowHover:'rgba(255,209,102,.4)'},
 };
 function applyTheme(name='relay'){
   const t=THEMES[name]||THEMES.relay;
@@ -765,9 +923,46 @@ function applyTheme(name='relay'){
   r.setProperty('--btn-shadow',t.btnShadow);
   r.setProperty('--btn-shadow-hover',t.btnShadowHover);
 }
+let _currentTheme = 'relay';
 (function initTheme(){
-  applyTheme('relay');
+  let saved = 'relay';
+  try { saved = localStorage.getItem('jobagentTheme') || 'relay'; } catch(e) {}
+  if (!THEMES[saved]) saved = 'relay';
+  _currentTheme = saved;
+  applyTheme(saved);
 })();
+function renderThemeMenu(){
+  const menu = document.getElementById('themeMenu');
+  if (!menu) return;
+  menu.innerHTML = Object.keys(THEMES).map(key => {
+    const t = THEMES[key];
+    const isActive = key === _currentTheme;
+    return `<button type="button" class="theme-menu-item${isActive?' active':''}" onclick="pickTheme('${key}')">
+      <span class="theme-swatch" style="background:linear-gradient(135deg,${t.accent},${t.accent2})"></span>
+      ${t.label}${isActive?'<span class="check">✓</span>':''}
+    </button>`;
+  }).join('');
+  menu.classList.remove('hidden');
+}
+function pickTheme(name){
+  if (!THEMES[name]) return;
+  _currentTheme = name;
+  applyTheme(name);
+  try { localStorage.setItem('jobagentTheme', name); } catch(e) {}
+  // update button swatch
+  const swatch = document.getElementById('themeCurrentSwatch');
+  const t = THEMES[name];
+  if (swatch) swatch.style.background = `linear-gradient(135deg,${t.accent},${t.accent2})`;
+  const menu = document.getElementById('themeMenu');
+  if (menu) menu.classList.add('hidden');
+}
+document.addEventListener('click', function(e){
+  const menu = document.getElementById('themeMenu');
+  const btn = document.getElementById('themeToggleBtn');
+  if (menu && !menu.classList.contains('hidden') && btn && !btn.contains(e.target) && !menu.contains(e.target)){
+    menu.classList.add('hidden');
+  }
+});
 
 /* ---------------- Password visibility toggles ---------------- */
 const EYE_OPEN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -948,7 +1143,7 @@ async function refreshAll(){
 }
 
 /* ================= VIEWS / NAV ================= */
-const VIEWS={dashboard:['Dashboard','Your agent at a glance'],matches:['Matched jobs','Jobs your agent has applied for on your behalf'],
+const VIEWS={dashboard:['Dashboard','Your agent at a glance'],matches:['Matched jobs','Jobs your agent has discovered for you'],
   applications:['Application report','Jobs that need your input, or ran into a problem'],
   docs:['Documents','ID, certificates, qualifications — optional'],watch:['Watched pages','Company career pages your agent monitors and applies from'],
   blocked:['Block list','Stop posts from certain companies or places'],profile:['Profile','Your search settings and agent behaviour']};
@@ -986,124 +1181,331 @@ function toggleDrawer(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
 
 /* ================= PROFILE ================= */
-// "Additional details" fields (the ones the AI application-filler can use
-// beyond name/email/phone/titles/locations/salary/resume) — grouped by how
-// they're read from/written to a job_seekers row, so loadProfile()/
-// saveProfile() can loop instead of repeating 25 near-identical lines.
-const PF_TEXT_FIELDS = { pfPhoneAlt:'phone_alt', pfGender:'gender', pfRace:'race', pfNationality:'nationality',
-  pfIdType:'id_type', pfIdNumber:'id_number', pfAddress:'physical_address', pfCity:'city', pfProvince:'province',
-  pfPostalCode:'postal_code', pfEmployer:'current_employer', pfPosition:'current_position',
-  pfQualification:'highest_qualification', pfFieldOfStudy:'field_of_study', pfBio:'bio', pfHobbies:'hobbies' };
-const PF_DATE_FIELDS = { pfDob:'date_of_birth', pfAvailableFrom:'available_from' };
-const PF_NUMBER_FIELDS = { pfYearsExp:'years_experience', pfNoticeDays:'notice_period_days' };
-const PF_LIST_FIELDS = { pfSkills:'skills', pfLanguages:'languages', pfDriversLicense:'drivers_license' };
-const PF_CHECK_FIELDS = { pfOwnTransport:'own_transport', pfRelocate:'willing_to_relocate',
-  pfPressureOk:'pressure_ok', pfTeamPlayer:'team_player' };
+/* ================= PROFILE — LOAD ================= */
+// The list of every simple <input> / <select> / <textarea> we round-trip
+// to a single column on job_seekers. Structure: [fieldId, columnName, kind].
+// kind = 'str' | 'num' | 'bool' | 'date' | 'csv' (comma-separated → text[])
+const PF_FIELDS = [
+  ['pfName',           'full_name',            'str'],
+  ['pfEmail',          'dedicated_email',      'str'],
+  ['pfPhone',          'phone',                'str'],
+  ['pfPhoneAlt',       'phone_alt',            'str'],
+  ['pfDob',            'date_of_birth',        'date'],
+  ['pfGender',         'gender',               'str'],
+  ['pfRace',           'race',                 'str'],
+  ['pfIdType',         'id_type',              'str'],
+  ['pfIdNumber',       'id_number',            'str'],
+  ['pfNationality',    'nationality',          'str'],
+  ['pfAddress',        'physical_address',     'str'],
+  ['pfCity',           'city',                 'str'],
+  ['pfProvince',       'province',             'str'],
+  ['pfPostal',         'postal_code',          'str'],
+  ['pfNoticeDays',     'notice_period_days',   'num'],
+  ['pfAvailableFrom',  'available_from',       'date'],
+  ['pfOwnTransport',   'own_transport',        'bool'],
+  ['pfWillRelocate',   'willing_to_relocate',  'bool'],
+  ['pfLicense',        'drivers_license',      'csv'],
+  ['pfTitles',         'job_title_keywords',   'csv'],
+  ['pfSalaryMin',      'salary_min',           'num'],
+  ['pfSalaryMax',      'salary_max',           'num'],
+  ['pfCurEmployer',    'current_employer',     'str'],
+  ['pfCurPosition',    'current_position',     'str'],
+  ['pfYearsExp',       'years_experience',     'num'],
+  ['pfHighestQual',    'highest_qualification','str'],
+  ['pfFieldOfStudy',   'field_of_study',       'str'],
+  ['pfSkills',         'skills',               'csv'],
+  ['pfLanguages',      'languages',            'csv'],
+  ['pfBio',            'bio',                  'str'],
+  ['pfHobbies',        'hobbies',              'str'],
+  ['pfPressure',       'pressure_ok',          'bool'],
+  ['pfTeam',           'team_player',          'bool'],
+];
+
+// Fields the form REFUSES to save without — the "strong security guard"
+// the user asked for. Empty means the save is blocked and the user gets
+// a specific alert naming what's missing.
+const PF_REQUIRED = [
+  ['pfName',        'Full name'],
+  ['pfDob',         'Date of birth'],
+  ['pfGender',      'Gender'],
+  ['pfIdType',      'ID type'],
+  ['pfIdNumber',    'ID / passport number'],
+  ['pfNationality', 'Nationality'],
+  ['pfPhone',       'Primary phone'],
+];
+
+function pfSetVal(id, v, kind){
+  const el = document.getElementById(id); if(!el) return;
+  if(v === null || v === undefined){ el.value = ''; return; }
+  if(kind === 'bool') el.value = (v === true || v === 'true') ? 'true' : (v === false ? 'false' : '');
+  else if(kind === 'csv') el.value = Array.isArray(v) ? v.join(', ') : (v || '');
+  else if(kind === 'date') el.value = v ? String(v).substring(0,10) : '';
+  else el.value = v;
+}
+function pfGetVal(id, kind){
+  const el = document.getElementById(id); if(!el) return null;
+  const raw = String(el.value ?? '').trim();
+  if(raw === '') return null;
+  if(kind === 'num')  return isNaN(Number(raw)) ? null : Number(raw);
+  if(kind === 'bool') return raw === 'true' ? true : raw === 'false' ? false : null;
+  if(kind === 'csv')  return raw.split(',').map(s=>s.trim()).filter(Boolean);
+  return raw;
+}
 
 async function loadProfile(){
-  // Always start from a clean, blank form — never leave stale/previous
-  // values on screen while the fresh row is fetched (or if there is none).
-  $('#pfName').value = '';
-  $('#pfEmail').value = '';
-  $('#pfPhone').value = '';
-  $('#pfTitles').value = '';
+  // Reset every simple field
+  PF_FIELDS.forEach(([id,,kind]) => pfSetVal(id, null, kind));
   renderLocMenu([]);
-  $('#pfSalaryMin').value = '';
-  $('#pfSalaryMax').value = '';
   $('#pfResumeName').textContent = '';
   $('#pfResume').value = '';
-  Object.keys(PF_TEXT_FIELDS).forEach(id=>{ $('#'+id).value=''; });
-  Object.keys(PF_DATE_FIELDS).forEach(id=>{ $('#'+id).value=''; });
-  Object.keys(PF_NUMBER_FIELDS).forEach(id=>{ $('#'+id).value=''; });
-  Object.keys(PF_LIST_FIELDS).forEach(id=>{ $('#'+id).value=''; });
-  Object.keys(PF_CHECK_FIELDS).forEach(id=>{ $('#'+id).checked=false; });
-  $('#pfAutofillSoft').checked = true; // default TRUE, matches agent_can_autofill_soft's DB default
+  $('#pfSaveStatus').textContent = '';
   currentSeeker = null;
+  // Pre-fill email from auth on a brand-new profile
+  $('#pfEmail').value = currentUser.email;
+  // Blank sub-tables
+  emp = []; edu = []; refs = [];
+  renderEmpList(); renderEduList(); renderRefList();
 
   const {data} = await sb.from('job_seekers').select('*').eq('user_id', currentUser.id).maybeSingle();
   currentSeeker = data;
-  if(data){
-    $('#pfName').value = data.full_name || '';
-    $('#pfEmail').value = data.dedicated_email || '';
-    $('#pfPhone').value = data.phone || '';
-    $('#pfTitles').value = (data.job_title_keywords||[]).join(', ');
-    renderLocMenu(data.preferred_locations||[]);
-    $('#pfSalaryMin').value = data.salary_min || '';
-    $('#pfSalaryMax').value = data.salary_max || '';
-    $('#pfResumeName').textContent = data.resume_url ? '✓ CV on file' : '';
-    Object.entries(PF_TEXT_FIELDS).forEach(([id,col])=>{ $('#'+id).value = data[col] || ''; });
-    Object.entries(PF_DATE_FIELDS).forEach(([id,col])=>{ $('#'+id).value = data[col] || ''; });
-    Object.entries(PF_NUMBER_FIELDS).forEach(([id,col])=>{ $('#'+id).value = (data[col]===0 || data[col]) ? data[col] : ''; });
-    Object.entries(PF_LIST_FIELDS).forEach(([id,col])=>{ $('#'+id).value = (data[col]||[]).join(', '); });
-    Object.entries(PF_CHECK_FIELDS).forEach(([id,col])=>{ $('#'+id).checked = data[col] === true; });
-    $('#pfAutofillSoft').checked = data.agent_can_autofill_soft !== false;
-  } else {
-    $('#pfEmail').value = currentUser.email;
-  }
+  if(!data) return;
+  PF_FIELDS.forEach(([id, col, kind]) => pfSetVal(id, data[col], kind));
+  renderLocMenu(data.preferred_locations || []);
+  $('#pfResumeName').textContent = data.resume_url ? '✓ CV on file' : '';
+
+  // Sub-tables
+  const [{data:e},{data:d},{data:r}] = await Promise.all([
+    sb.from('job_seeker_employment').select('*').eq('job_seeker_id', data.id).order('sort_order'),
+    sb.from('job_seeker_education').select('*').eq('job_seeker_id', data.id).order('sort_order'),
+    sb.from('job_seeker_references').select('*').eq('job_seeker_id', data.id).order('sort_order'),
+  ]);
+  emp = e || []; edu = d || []; refs = r || [];
+  renderEmpList(); renderEduList(); renderRefList();
 }
 
+/* ================= PROFILE — SAVE ================= */
+// The "strong security guard" — hard-blocks save if any REQUIRED field is
+// empty and tells the user exactly which ones. Everything else may be blank
+// and the profile still saves ("incomplete but saved").
 async function saveProfile(){
-  // Two buttons on this view ("Save and apply" and "Save additional
-  // details") both call this — it's one upsert either way, so both get the
-  // same disabled/"Saving…" treatment rather than tracking which was clicked.
-  const btn=$('#pfSaveBtn'), btn2=$('#pfSaveExtraBtn');
-  const btnText=btn.textContent, btn2Text=btn2.textContent;
-  btn.disabled=true; btn.textContent='Saving…';
-  btn2.disabled=true; btn2.textContent='Saving…';
-  try{
+  const btn=$('#pfSaveBtn'); const statusEl=$('#pfSaveStatus');
+  statusEl.textContent=''; statusEl.style.color='';
+
+  // 1. Required-field guard
+  const missing = PF_REQUIRED
+    .filter(([id]) => !String(document.getElementById(id)?.value ?? '').trim())
+    .map(([, label]) => label);
+  if (missing.length) {
+    const msg = 'Cannot save yet — please fill in the required fields:\n\n• ' + missing.join('\n• ');
+    alert(msg);                             // hard alert like the user asked for
+    // Scroll to the first missing field and highlight it
+    const firstMissingId = PF_REQUIRED.find(([id]) => !document.getElementById(id)?.value)[0];
+    const firstEl = document.getElementById(firstMissingId);
+    if (firstEl) { firstEl.focus(); firstEl.scrollIntoView({behavior:'smooth', block:'center'}); }
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    // Optional CV upload
     let resumeUrl = currentSeeker?.resume_url || null;
     const file = $('#pfResume').files[0];
-    if(file){
+    if (file) {
       const path = `${currentUser.id}/resume-${Date.now()}-${file.name}`;
       const {error: upErr} = await sb.storage.from('resumes').upload(path, file, {upsert:true});
-      if(upErr) throw upErr;
+      if (upErr) throw upErr;
       const {data: signed, error: signErr} = await sb.storage.from('resumes').createSignedUrl(path, 315360000);
-      if(signErr) throw signErr;
+      if (signErr) throw signErr;
       resumeUrl = signed.signedUrl;
     }
-    const payload = {
-      user_id: currentUser.id,
-      full_name: $('#pfName').value.trim(),
-      dedicated_email: $('#pfEmail').value.trim(),
-      phone: $('#pfPhone').value.trim(),
-      job_title_keywords: splitList($('#pfTitles').value),
-      preferred_locations: getSelectedLocs(),
-      salary_min: $('#pfSalaryMin').value ? Number($('#pfSalaryMin').value) : null,
-      salary_max: $('#pfSalaryMax').value ? Number($('#pfSalaryMax').value) : null,
-      resume_url: resumeUrl,
-      agent_can_autofill_soft: $('#pfAutofillSoft').checked
-    };
-    Object.entries(PF_TEXT_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).value.trim() || null; });
-    Object.entries(PF_DATE_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).value || null; });
-    Object.entries(PF_NUMBER_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).value ? Number($('#'+id).value) : null; });
-    Object.entries(PF_LIST_FIELDS).forEach(([id,col])=>{ payload[col] = splitList($('#'+id).value); });
-    Object.entries(PF_CHECK_FIELDS).forEach(([id,col])=>{ payload[col] = $('#'+id).checked; });
-    // application_mode/status belong to Admin, not this form — only set
-    // them on the very first save (brand-new signup, currentSeeker still
-    // null at this point) so a new account starts active+automatic same as
-    // before. On every later save, leave them out entirely: including them
-    // here used to silently reset a paused account back to active, or a
-    // manual-approval account back to automatic, every time the seeker
-    // changed something as small as their phone number.
-    if(!currentSeeker){
-      payload.application_mode = 'automatic';
-      payload.status = 'active';
-    }
+
+    // Build the payload from PF_FIELDS
+    const payload = { user_id: currentUser.id };
+    PF_FIELDS.forEach(([id, col, kind]) => { payload[col] = pfGetVal(id, kind); });
+    payload.preferred_locations = getSelectedLocs();
+    // Missing "soft" answers are filled in by the agent at apply-time by default.
+    payload.agent_can_autofill_soft = true;
+    payload.resume_url = resumeUrl;
+    payload.application_mode = currentSeeker?.application_mode || 'automatic';
+    payload.status = 'active';
+
     const {data, error} = await sb.from('job_seekers').upsert(payload, {onConflict:'user_id'}).select().single();
-    if(error) throw error;
+    if (error) throw error;
     currentSeeker = data;
+
+    // Save sub-tables in parallel — replace-mode: wipe existing rows for this
+    // seeker then insert the current arrays. Simpler + fewer edge cases than
+    // per-row diff, and these tables are small.
+    await Promise.all([
+      sb.from('job_seeker_employment').delete().eq('job_seeker_id', data.id),
+      sb.from('job_seeker_education').delete().eq('job_seeker_id', data.id),
+      sb.from('job_seeker_references').delete().eq('job_seeker_id', data.id),
+    ]);
+    const insEmp  = emp.filter(r => r.company || r.position).map((r,i) => ({
+      job_seeker_id: data.id, company: r.company||'', position: r.position||'',
+      start_date: r.start_date||null, end_date: r.end_date||null,
+      description: r.description||null, reason_for_leaving: r.reason_for_leaving||null,
+      is_current: !!r.is_current, sort_order: i,
+    }));
+    const insEdu  = edu.filter(r => r.institution || r.qualification).map((r,i) => ({
+      job_seeker_id: data.id, institution: r.institution||'', qualification: r.qualification||'',
+      field_of_study: r.field_of_study||null, start_year: r.start_year||null, end_year: r.end_year||null,
+      achieved: r.achieved !== false, sort_order: i,
+    }));
+    const insRefs = refs.filter(r => r.full_name).map((r,i) => ({
+      job_seeker_id: data.id, full_name: r.full_name, position: r.position||null,
+      company: r.company||null, relationship: r.relationship||null,
+      phone: r.phone||null, email: r.email||null, sort_order: i,
+    }));
+    if (insEmp.length)  await sb.from('job_seeker_employment').insert(insEmp);
+    if (insEdu.length)  await sb.from('job_seeker_education').insert(insEdu);
+    if (insRefs.length) await sb.from('job_seeker_references').insert(insRefs);
+
+    // Completeness feedback — the "incomplete but saved" branch
+    const optionalMissing = [];
+    if (!payload.physical_address) optionalMissing.push('address');
+    if (!payload.years_experience && !insEmp.length) optionalMissing.push('work history');
+    if (!insEdu.length) optionalMissing.push('education');
+    if (!insRefs.length) optionalMissing.push('references');
+    if (!payload.skills || !payload.skills.length) optionalMissing.push('skills');
+    if (optionalMissing.length) {
+      statusEl.style.color = 'var(--accent)';
+      statusEl.textContent = 'Saved ✓ Profile is incomplete (missing: ' + optionalMissing.join(', ') + '). You can save more later — the agent will still work with what you have.';
+      toast('Profile saved (still incomplete)','ok');
+    } else {
+      statusEl.style.color = 'var(--ok)';
+      statusEl.textContent = 'Saved ✓ Your profile is complete. The agent uses it on every run.';
+      toast('Profile saved ✓','ok');
+    }
     $('#pfResumeName').textContent = resumeUrl ? '✓ CV on file' : '';
-    toast('Profile saved ✓ Your agent will use it on the next check.','ok');
     renderDashboard();
-  }catch(err){
-    toast('⚠ '+err.message,'err');
-  }finally{
-    btn.disabled=false; btn.textContent=btnText;
-    btn2.disabled=false; btn2.textContent=btn2Text;
-  }
+  } catch (err) {
+    toast('⚠ ' + err.message, 'err');
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Save failed: ' + err.message;
+  } finally { btn.disabled = false; btn.textContent = '💾 Save profile'; }
 }
 
-async function deleteAccount(){
+/* ================= PROFILE — SUB-TABLE HELPERS ================= */
+let emp = [], edu = [], refs = [];
+function esc2(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function _mkRow(inner, onRemove){
+  const w = document.createElement('div');
+  w.style.cssText='background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;padding-right:44px;position:relative';
+  w.innerHTML = inner +
+    '<button type="button" class="row-x" title="Remove" aria-label="Remove"'+
+    ' style="position:absolute;top:8px;right:8px;width:26px;height:26px;padding:0;'+
+    'display:inline-flex;align-items:center;justify-content:center;'+
+    'background:rgba(255,107,107,.15);color:#ff6b6b;border:1px solid rgba(255,107,107,.35);'+
+    'border-radius:8px;cursor:pointer;font-size:14px;line-height:1;font-weight:700">✕</button>';
+  w.querySelector('button.row-x').addEventListener('click', onRemove);
+  return w;
+}
+function _rowInput(v, cls, ph, type){
+  return '<input class="'+cls+'" placeholder="'+esc2(ph)+'" value="'+esc2(v||'')+'"'+(type?' type="'+type+'"':'')+'>';
+}
+
+function renderEmpList(){
+  const el = document.getElementById('pfEmpList'); el.innerHTML = '';
+  if (!emp.length) { el.innerHTML = '<div class="hint" style="color:var(--muted);font-size:12px">No jobs added yet.</div>'; return; }
+  emp.forEach((r, i) => {
+    const html =
+      '<div class="row2" style="margin-bottom:8px">'+
+      '  <div class="field" style="margin:0"><label>Company</label>'+_rowInput(r.company,'e-co','Company name')+'</div>'+
+      '  <div class="field" style="margin:0"><label>Position</label>'+_rowInput(r.position,'e-po','Job title')+'</div>'+
+      '</div>'+
+      '<div class="row2" style="margin-bottom:8px">'+
+      '  <div class="field" style="margin:0"><label>Start</label>'+_rowInput(r.start_date,'e-st','',  'date')+'</div>'+
+      '  <div class="field" style="margin:0"><label>End</label>'+_rowInput(r.end_date,  'e-en','',  'date')+'</div>'+
+      '</div>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:8px;cursor:pointer">'+
+      '  <input type="checkbox" class="e-cur" '+(r.is_current?'checked':'')+' style="width:auto;accent-color:var(--accent)"> Currently work here'+
+      '</label>'+
+      '<div class="field" style="margin:0"><label>What you did</label><textarea class="e-desc" rows="2" placeholder="Short summary">'+esc2(r.description||'')+'</textarea></div>'+
+      '<div class="field" style="margin:0"><label>Reason for leaving</label>'+_rowInput(r.reason_for_leaving,'e-rea','')+'</div>';
+    const row = _mkRow(html, () => { emp.splice(i,1); renderEmpList(); });
+    // Wire inputs back to state
+    row.querySelector('.e-co').oninput   = e => emp[i].company = e.target.value;
+    row.querySelector('.e-po').oninput   = e => emp[i].position = e.target.value;
+    row.querySelector('.e-st').oninput   = e => emp[i].start_date = e.target.value;
+    row.querySelector('.e-en').oninput   = e => emp[i].end_date = e.target.value;
+    row.querySelector('.e-cur').onchange = e => emp[i].is_current = e.target.checked;
+    row.querySelector('.e-desc').oninput = e => emp[i].description = e.target.value;
+    row.querySelector('.e-rea').oninput  = e => emp[i].reason_for_leaving = e.target.value;
+    el.appendChild(row);
+  });
+}
+function addEmpRow(){ emp.push({}); renderEmpList(); }
+
+function renderEduList(){
+  const el = document.getElementById('pfEduList'); el.innerHTML = '';
+  if (!edu.length) { el.innerHTML = '<div class="hint" style="color:var(--muted);font-size:12px">No qualifications added yet.</div>'; return; }
+  edu.forEach((r, i) => {
+    const html =
+      '<div class="row2" style="margin-bottom:8px">'+
+      '  <div class="field" style="margin:0"><label>Institution</label>'+_rowInput(r.institution,'d-in','School / university')+'</div>'+
+      '  <div class="field" style="margin:0"><label>Qualification</label>'+_rowInput(r.qualification,'d-q','e.g. Matric, BCom')+'</div>'+
+      '</div>'+
+      '<div class="row2" style="margin-bottom:8px">'+
+      '  <div class="field" style="margin:0"><label>Field of study</label>'+_rowInput(r.field_of_study,'d-f','Optional')+'</div>'+
+      '  <div class="field" style="margin:0"><label>Start / End year</label>'+
+      '     <div style="display:flex;gap:8px">'+_rowInput(r.start_year,'d-sy','From', 'number')+_rowInput(r.end_year,'d-ey','To', 'number')+'</div>'+
+      '  </div>'+
+      '</div>'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);cursor:pointer">'+
+      '  <input type="checkbox" class="d-ach" '+(r.achieved !== false ? 'checked' : '')+' style="width:auto;accent-color:var(--accent)"> Achieved (uncheck if still studying)'+
+      '</label>';
+    const row = _mkRow(html, () => { edu.splice(i,1); renderEduList(); });
+    row.querySelector('.d-in').oninput = e => edu[i].institution = e.target.value;
+    row.querySelector('.d-q').oninput  = e => edu[i].qualification = e.target.value;
+    row.querySelector('.d-f').oninput  = e => edu[i].field_of_study = e.target.value;
+    row.querySelector('.d-sy').oninput = e => edu[i].start_year = e.target.value ? +e.target.value : null;
+    row.querySelector('.d-ey').oninput = e => edu[i].end_year   = e.target.value ? +e.target.value : null;
+    row.querySelector('.d-ach').onchange = e => edu[i].achieved = e.target.checked;
+    el.appendChild(row);
+  });
+}
+function addEduRow(){ edu.push({achieved:true}); renderEduList(); }
+
+function renderRefList(){
+  const el = document.getElementById('pfRefList'); el.innerHTML = '';
+  if (!refs.length) { el.innerHTML = '<div class="hint" style="color:var(--muted);font-size:12px">No references added yet.</div>'; return; }
+  refs.forEach((r, i) => {
+    const html =
+      '<div class="row2" style="margin-bottom:8px">'+
+      '  <div class="field" style="margin:0"><label>Full name</label>'+_rowInput(r.full_name,'r-n','')+'</div>'+
+      '  <div class="field" style="margin:0"><label>Position</label>'+_rowInput(r.position,'r-p','Job title')+'</div>'+
+      '</div>'+
+      '<div class="row2" style="margin-bottom:8px">'+
+      '  <div class="field" style="margin:0"><label>Company</label>'+_rowInput(r.company,'r-c','')+'</div>'+
+      '  <div class="field" style="margin:0"><label>Relationship</label>'+_rowInput(r.relationship,'r-rel','e.g. Direct manager')+'</div>'+
+      '</div>'+
+      '<div class="row2">'+
+      '  <div class="field" style="margin:0"><label>Phone</label>'+_rowInput(r.phone,'r-ph','')+'</div>'+
+      '  <div class="field" style="margin:0"><label>Email</label>'+_rowInput(r.email,'r-em','', 'email')+'</div>'+
+      '</div>';
+    const row = _mkRow(html, () => { refs.splice(i,1); renderRefList(); });
+    row.querySelector('.r-n').oninput  = e => refs[i].full_name = e.target.value;
+    row.querySelector('.r-p').oninput  = e => refs[i].position = e.target.value;
+    row.querySelector('.r-c').oninput  = e => refs[i].company = e.target.value;
+    row.querySelector('.r-rel').oninput= e => refs[i].relationship = e.target.value;
+    row.querySelector('.r-ph').oninput = e => refs[i].phone = e.target.value;
+    row.querySelector('.r-em').oninput = e => refs[i].email = e.target.value;
+    el.appendChild(row);
+  });
+}
+function addRefRow(){ refs.push({}); renderRefList(); }
+
+/* ================= "BACK TO TOP" FLOATING BUTTON ================= */
+// Only shown while the Profile view is active AND the user has scrolled a bit.
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('pfTopBtn'); if (!btn) return;
+  const onProfile = state && state.view === 'profile' && !document.getElementById('view-profile')?.classList.contains('hidden');
+  btn.style.display = (onProfile && window.scrollY > 200) ? 'block' : 'none';
+});
+
+async function _deleteAccount_removed(){
+  return; // Removed from the app \u2014 account deletion is admin-only.
   askConfirm('Delete your account? This permanently removes your profile, CV, matches, application history and stops your agent. This can\u2019t be undone.', async ()=>{
     const btn=$('#delAcctBtn'); btn.disabled=true; btn.textContent='Deleting…';
     try{
@@ -1152,10 +1554,17 @@ function renderDashboard(){
   $('#stBlocked').textContent=blockedCount;
   $('#stWatch').textContent=customSources.length;
 
-  const lastMatch = matches[0]?.discovered_at;
-  $('#lastScan').textContent = lastMatch ? ('Last applied for you '+timeAgo(lastMatch)) : 'No applications sent yet';
-
-  const done = !!(currentSeeker && currentSeeker.job_title_keywords?.length && currentSeeker.preferred_locations?.length && currentSeeker.resume_url);
+  // Top-right "Last …" label removed — per-card timestamps carry the truth.
+  // Profile is "complete" when the strengthened required fields are filled — CV upload is now optional.
+  const done = !!(currentSeeker
+    && currentSeeker.job_title_keywords?.length
+    && currentSeeker.preferred_locations?.length
+    && currentSeeker.full_name
+    && currentSeeker.phone
+    && currentSeeker.id_number
+    && currentSeeker.gender
+    && currentSeeker.date_of_birth
+    && currentSeeker.nationality);
   $('#setupBanner').classList.toggle('hidden', done);
   if(done){
     $('#agentSummary').innerHTML = 'Searching for <b>'+esc(currentSeeker.job_title_keywords.join(', '))+'</b> in <b>'+esc(currentSeeker.preferred_locations.join(', '))+'</b>.<br>Your agent checks your watched pages every few hours and applies automatically.';
@@ -1165,7 +1574,7 @@ function renderDashboard(){
 
   // Derived activity feed — merges recent matches + applications, no separate activity table exists
   const feed=[];
-  matches.slice(0,15).forEach(m=>feed.push({t:m.discovered_at, msg:'🎯 New match'+(m.match_score!=null?' ('+Math.round(m.match_score*100)+'%)':'')+': '+m.job_title+' at '+(m.company_name||'?')}));
+  matches.slice(0,15).forEach(m=>feed.push({t:m.discovered_at, msg:'🎯 New match'+(m.match_score!=null?' ('+Math.round(m.match_score)+'%)':'')+': '+m.job_title+' at '+(m.company_name||'?')}));
   applications.slice(0,15).forEach(a=>feed.push({t:a.attempted_at, msg:(a.result==='success'?'📮 Applied':'⚠ Application '+a.result)+': '+(a.job_matches?.job_title||'a role')+(a.job_matches?.company_name?' at '+a.job_matches.company_name:'')}));
   feed.sort((a,b)=>new Date(b.t)-new Date(a.t));
   const actEl=$('#actList');
@@ -1214,7 +1623,18 @@ const COUNTRY_LABELS = {
 };
 function classifyLocationCountry(loc){
   if(!loc) return 'other';
-  const l = loc.toLowerCase();
+  const l = loc.toLowerCase().trim();
+
+  // Smart South Africa detection FIRST — catches any city/town whose name
+  // isn't hard-coded below, provided the string is clearly SA-labelled:
+  //   "Somerset West, ZA"  "Bedfordview, ZA"  "Kempton Park, ZA"
+  //   "Any Town, South Africa"  "Anywhere, RSA"  "Anywhere, SA"
+  //   "Cape Town / ZA"  "Durban - South Africa"
+  // Without this the previous keyword pass silently dropped legit SA metros
+  // that hadn't been added to the whitelist yet.
+  if (/(?:,|\/|-|\s)\s*(?:za|s\.?a\.?|rsa|south africa|zaf)\s*$/i.test(l)) return 'south_africa';
+  if (/(?:,|\s)\s*south africa(?:$|\W)/i.test(l)) return 'south_africa';
+
   for(const [country, keywords] of Object.entries(COUNTRY_INDICATORS)){
     if(keywords.some(kw => l.includes(kw))) return country;
   }
@@ -1304,10 +1724,13 @@ function updatePfLocsLabel(){
 
 async function loadMatches(){
   if(!currentSeeker){ matches=[]; return; }
-  // "Matched jobs" now shows ONLY jobs the agent has actually applied for —
-  // anything still needing manual input, or that hit a snag, lives in the
-  // Application report instead. There's no more pending/approve workflow here.
-  const {data, error} = await sb.from('job_matches').select('*').eq('job_seeker_id', currentSeeker.id).eq('status','applied').order('discovered_at',{ascending:false});
+  // Show discovered jobs the seeker can act on: pending (auto-discovery output),
+  // approved (queued for auto-apply), applied (already applied by agent), and
+  // needs_manual_action (agent couldn't apply itself). Skip rejected/failed/paused.
+  const {data, error} = await sb.from('job_matches').select('*')
+    .eq('job_seeker_id', currentSeeker.id)
+    .in('status', ['pending','approved','applied','needs_manual_action'])
+    .order('discovered_at', {ascending:false});
   // v1 scope: South Africa only. The classifyLocationCountry() function above
   // supports the full country list already — when international expansion
   // is ready, just remove this filter line and restore the #mLoc dropdown.
@@ -1338,28 +1761,34 @@ function renderMatches(){
   const g=$('#matchGrid');
   if(!list.length){
     g.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="big">📡</div>'+
-      (matches.length ? 'No matches fit these filters. Try clearing them.' : 'No jobs applied for yet. Your agent checks your watched pages every few hours and applies automatically.')+'</div>';
+      (matches.length ? 'No matches fit these filters. Try clearing them.' : 'No matches yet. Your agent is scanning — check back after the next run.')+'</div>';
     updateBulkBar();
     return;
   }
-  // Every job here has already been applied for by the agent — there's no
-  // more pending/approve workflow in this view. Delete + Block company + View
-  // is all that's left to offer.
+  // Status → pill mapping. Same list of statuses loadMatches() filters on.
+  const statusPill = (s) => {
+    if (s === 'applied')             return '<span class="pill teal">✔ Applied</span>';
+    if (s === 'approved')            return '<span class="pill amber">🟢 Queued</span>';
+    if (s === 'needs_manual_action') return '<span class="pill amber">⚠ Needs your input</span>';
+    return '<span class="pill gray">🔍 Discovered</span>'; // pending
+  };
   g.innerHTML = list.map(m=>{
+    // match_score is stored as an integer 0..100, not a fraction.
     const scoreHtml = m.match_score!=null
-      ? '<span class="score">'+Math.round(m.match_score*100)+'% match</span>'
+      ? '<span class="score">'+Math.round(m.match_score)+'% match</span>'
       : '<span class="score gray">from your watched pages</span>';
+    const verb = m.status === 'applied' ? 'applied' : 'found';
     return '<div class="mcard">'+
       '<div class="mcard-top"><label style="display:flex;align-items:center;gap:8px">'+
       '<input type="checkbox" class="match-select" data-id="'+m.id+'" style="width:auto" '+(state.selected.has(m.id)?'checked':'')+'>'+
-      scoreHtml+'</label><span class="pill teal">✔ Applied</span></div>'+
+      scoreHtml+'</label>'+statusPill(m.status)+'</div>'+
       '<div><h4>'+esc(m.job_title)+'</h4><div class="co">'+esc(m.company_name||'')+'</div></div>'+
       '<div class="meta">'+(m.location?'<span>📍 '+esc(m.location)+'</span>':'')+'</div>'+
       (m.match_reason ? '<div class="blurb">"'+esc(m.match_reason)+'"</div>' : '')+
       '<div class="acts"><button class="btn btn-danger btn-sm" data-action="delete" data-id="'+m.id+'">Delete</button>'+
       '<a class="btn btn-ghost btn-sm" href="'+esc(m.job_url)+'" target="_blank" rel="noopener">View ↗</a>'+
       '<button class="btn btn-ghost btn-sm" title="Block company" data-quickblock-co="'+esc(m.company_name||'')+'">Block company</button>'+
-      '<span class="found">applied '+timeAgo(m.discovered_at)+'</span></div></div>';
+      '<span class="found">'+verb+' '+timeAgo(m.discovered_at)+'</span></div></div>';
   }).join('');
   updateBulkBar();
 }
@@ -1479,7 +1908,7 @@ function renderApplications(){
 
   const el=$('#appList');
   el.innerHTML = !applied.length
-    ? '<div class="empty"><div class="big">📮</div>No applications yet. Your agent applies automatically to new matches — check back after its next run.</div>'
+    ? '<div class="empty"><div class="big">📮</div>No applications yet. Approve a match and your agent will send it off.</div>'
     : applied.map(a=>{
         const pillClass = a.result==='success' ? 'green' : 'amber';
         return '<div class="lrow">'+
